@@ -2,93 +2,103 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis.h>
+#include <async.h>
+#include <adapters/libev.h>
 
-#ifdef _MSC_VER
-#include <winsock2.h> /* For struct timeval */
-#endif
+void fakeProbing(const char *ip, int port)
+{
+    printf("fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
+}
+
+void monitorCallback(redisAsyncContext *c, void *r, void *privdata)
+{
+    redisReply *reply = r;
+
+    if (!reply)
+        return;
+
+    // result from MONITOR itself isn't interesting
+    if (!strcmp(reply->str, "OK"))
+        return;
+
+    //printf("REPLY: %s\n", reply->str);
+
+    char *msg = strdup(index(reply->str, ']') + 2);
+    char *cmd = strtok(msg, " ");
+
+    // we are interested in SADD command
+    if (cmd && !strcmp(cmd, "\"SADD\"")) {
+        char *arg = strtok(0, " ");
+
+        if (arg && strlen(arg) > 4 && !strncmp(arg + strlen(arg) - 4, "tcp", 3)) {
+            // found a open port
+            // arg is in format like "192.168.1.1:80/tcp" (including citation mark)
+
+            char *ip = arg + 1;
+            char *port_str = index(ip, ':') + 1;
+            char *timestamp = strtok(0, " ") + 1;
+
+            // remove delimiters
+            port_str[-1] = 0;
+            *index(port_str, '/') = 0;
+            // remove '"' at the end
+            *index(timestamp, '"') = 0;
+
+            int port = atoi(port_str);
+
+            printf("open port at: %s:%d (%s)\n", ip, port, timestamp);
+
+            fakeProbing(ip, port);
+        }
+    }
+
+    free(msg);
+}
+
+void connectCallback(const redisAsyncContext *c, int status)
+{
+    if (status != REDIS_OK) {
+        printf("error: %s\n", c->errstr);
+        return;
+    }
+
+    printf("connected (^ 3^)\n");
+}
+
+void disconnectCallback(const redisAsyncContext *c, int status)
+{
+    if (status != REDIS_OK) {
+        printf("error: %s\n", c->errstr);
+        return;
+    }
+
+    printf("disconnect ( ˘ω˘)\n");
+}
 
 int main(int argc, char **argv) {
-    unsigned int j, isunix = 0;
-    redisContext *c;
+    redisAsyncContext *c;
     redisReply *reply;
     const char *hostname = (argc > 1) ? argv[1] : "127.0.0.1";
 
-    if (argc > 2) {
-        if (*argv[2] == 'u' || *argv[2] == 'U') {
-            isunix = 1;
-            /* in this case, host is the path to the unix socket */
-            printf("Will connect to unix socket @%s\n", hostname);
-        }
-    }
-
     int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
-    struct timeval timeout = { 1, 500000 }; // 1.5 seconds
-    if (isunix) {
-        c = redisConnectUnixWithTimeout(hostname, timeout);
-    } else {
-        c = redisConnectWithTimeout(hostname, port, timeout);
-    }
-    if (c == NULL || c->err) {
-        if (c) {
-            printf("Connection error: %s\n", c->errstr);
-            redisFree(c);
-        } else {
-            printf("Connection error: can't allocate redis context\n");
-        }
+    c = redisAsyncConnect(hostname, port);
+
+    if (c->err) {
+        printf("Connection error: %s\n", c->errstr);
+        redisAsyncFree(c);
+
         exit(1);
     }
 
-    /* PING server */
-    reply = redisCommand(c,"PING");
-    printf("PING: %s\n", reply->str);
-    freeReplyObject(reply);
+    redisLibevAttach(EV_DEFAULT_ c);
+    redisAsyncSetConnectCallback(c, connectCallback);
+    redisAsyncSetDisconnectCallback(c, disconnectCallback);
+    redisAsyncCommand(c, monitorCallback, 0, "MONITOR");
 
-    /* Set a key */
-    reply = redisCommand(c,"SET %s %s", "foo", "hello world");
-    printf("SET: %s\n", reply->str);
-    freeReplyObject(reply);
+    ev_loop(EV_DEFAULT_ 0);
 
-    /* Set a key using binary safe API */
-    reply = redisCommand(c,"SET %b %b", "bar", (size_t) 3, "hello", (size_t) 5);
-    printf("SET (binary API): %s\n", reply->str);
-    freeReplyObject(reply);
-
-    /* Try a GET and two INCR */
-    reply = redisCommand(c,"GET foo");
-    printf("GET foo: %s\n", reply->str);
-    freeReplyObject(reply);
-
-    reply = redisCommand(c,"INCR counter");
-    printf("INCR counter: %lld\n", reply->integer);
-    freeReplyObject(reply);
-    /* again ... */
-    reply = redisCommand(c,"INCR counter");
-    printf("INCR counter: %lld\n", reply->integer);
-    freeReplyObject(reply);
-
-    /* Create a list of numbers, from 0 to 9 */
-    reply = redisCommand(c,"DEL mylist");
-    freeReplyObject(reply);
-    for (j = 0; j < 10; j++) {
-        char buf[64];
-
-        snprintf(buf,64,"%u",j);
-        reply = redisCommand(c,"LPUSH mylist element-%s", buf);
-        freeReplyObject(reply);
-    }
-
-    /* Let's check what we have inside the list */
-    reply = redisCommand(c,"LRANGE mylist 0 -1");
-    if (reply->type == REDIS_REPLY_ARRAY) {
-        for (j = 0; j < reply->elements; j++) {
-            printf("%u) %s\n", j, reply->element[j]->str);
-        }
-    }
-    freeReplyObject(reply);
-
-    /* Disconnects and frees the context */
-    redisFree(c);
+    redisAsyncFree(c);
 
     return 0;
 }
