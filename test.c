@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "probeably.h"
 #include "module.h"
 #include "module-tls.h"
@@ -6,10 +7,14 @@
 
 int main(int argc, char *argv[])
 {
+	if (argc < 3) {
+		printf("usage: test [ip] [port]\n");
+		exit(EXIT_FAILURE);
+	}
 	struct module *mod = &module_http;
-	struct probeable p;
+	struct probeably p;
 
 	mod->init(&p);
-	mod->run(&p);
+	mod->run(&p, argv[1], atoi(argv[2]));
 	mod->cleanup(&p);
 }

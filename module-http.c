@@ -1,31 +1,42 @@
 #include <stdio.h>
-#include "module-http.h"
+#include <string.h>
 #include "module.h"
+#include "module-http.h"
 #include "socket.h"
 #include "probeably.h"
 
-#define HTTP_BUFFER_SIZE
+#define HTTP_BUFFER_SIZE 512
 static char http_buffer[HTTP_BUFFER_SIZE];
 
-static void http_module_init(struct probeable *p)
+static void http_module_init(struct probeably *p)
 {
 
 }
 
-static void http_module_cleanup(struct probeable *p)
+static void http_module_cleanup(struct probeably *p)
 {
 
 }
 
-static void http_module_run(struct probeable *p, char *ip, int port)
+static void http_module_run(struct probeably *p, char *ip, int port)
 {
+	PRB_DEBUG("http", "running module on %s:%d\n", ip, port);
+
 	struct prb_socket sock;
 	sock.type = PRB_SOCKET_RAW;
-	prb_socket_connect(&sock, ip, port;
+	if (prb_socket_connect(&sock, ip, port) < 0) {
+		return;
+	}
 
-	int count = prb_socket_read(&sock, buf, 1024);
-	buf[count] = '\0';
-	printf("HTTP module read '%s'\n", buf);
+	strcpy(http_buffer, "GET / HTTP/1.1\r\nHost: www\r\n\r\n");
+
+	int count;
+	PRB_DEBUG("http", "Sending request '%s'\n", http_buffer);
+	count = prb_socket_write(&sock, http_buffer, strlen(http_buffer));
+	PRB_DEBUG("http", "Attempting to read response\n");
+	count = prb_socket_read(&sock, http_buffer, 1024);
+	http_buffer[count] = '\0';
+	printf("HTTP module read '%s'\n", http_buffer);
 }
 
 struct module module_http = {

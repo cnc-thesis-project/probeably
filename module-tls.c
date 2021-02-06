@@ -6,17 +6,17 @@
 
 
 
-static void tls_module_init(struct probeable *p)
+static void tls_module_init(struct probeably *p)
 {
 	wolfSSL_Init();
 }
 
-static void tls_module_cleanup(struct probeable *p)
+static void tls_module_cleanup(struct probeably *p)
 {
 	wolfSSL_Cleanup();
 }
 
-static void tls_module_run(struct probeable *p)
+static void tls_module_run(struct probeably *p, char *ip, int port)
 {
 
 	int sock = socket(AF_INET, SOCK_STREAM, 0);

@@ -7,9 +7,9 @@
 struct module {
 	char *name;
 	int flags;
-	void (*init)(struct probeable *p);
-	void (*cleanup)(struct probeable *p);
-	void (*run)(struct probeable *p);
+	void (*init)(struct probeably *p);
+	void (*cleanup)(struct probeably *p);
+	void (*run)(struct probeably *p, char *ip, int port);
 };
 
 #endif

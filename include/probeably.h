@@ -1,7 +1,9 @@
-#ifndef _PROBEABLE_PROBEABLE_H
-#define _PROBEABLE_PROBEABLE_H
+#ifndef _PROBEABLY_PROBEABLY_H
+#define _PROBEABLY_PROBEABLY_H
 
-struct probeable {
+#define PRB_DEBUG(LABEL, ARGS...) printf("[%s] ", LABEL); printf(ARGS);
+
+struct probeably {
 	FILE *fp;
 };
 
