@@ -1,11 +1,13 @@
 #ifndef _PROBEABLY_SOCKET_H
 #define _PROBEABLY_SOCKET_H
 
-#define SOCKET_RAW 1 << 0
-#define SOCKET_SSL 1 << 1
+#define PRB_SOCKET_RAW (1 << 0)
+#define PRB_SOCKET_SSL (1 << 1)
 
-extern struct socket;
+extern struct prb_socket;
 
-write(struct socket, const void *buf, size_t count);
+ssize_t write(struct prb_socket, const void *buf, size_t count);
 
-read(struct socket, void *buf, size_t count);
+ssize_t read(struct prb_socket, void *buf, size_t count);
+
+#endif
