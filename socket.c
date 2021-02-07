@@ -83,12 +83,16 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
 			}
+			fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) & ~O_NONBLOCK);
 			s->type = PRB_SOCKET_RAW;
 			return 0;
 		}
 		s->type = PRB_SOCKET_SSL;
 		PRB_DEBUG("connect", "SSL handshake was successful\n");
+		wolfSSL_set_using_nonblock(s->ssl, 0);
 	}
+
+	fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) & ~O_NONBLOCK);
 
 	PRB_DEBUG("connect", "Connection was successful\n");
 	return 0;
@@ -142,7 +146,11 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 			break;
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("read", "Reading data from raw socket\n");
-			return read(s->sock, buf, count);
+			err = read(s->sock, buf, count);
+			if (err < 0) {
+				perror("read");
+				return -1;
+			}
 			break;
 	}
 }
