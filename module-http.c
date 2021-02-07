@@ -35,7 +35,7 @@ static void http_module_run(struct probeably *p, char *ip, int port)
 	count = prb_socket_write(&sock, http_buffer, strlen(http_buffer));
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 	PRB_DEBUG("http", "Attempting to read response\n");
-	count = prb_socket_read(&sock, http_buffer, 1024);
+	count = prb_socket_read(&sock, http_buffer, HTTP_BUFFER_SIZE);
 	PRB_DEBUG("http", "Read %d bytes\n", count);
 	http_buffer[count] = '\0';
 	printf("HTTP module read '%s'\n", http_buffer);
