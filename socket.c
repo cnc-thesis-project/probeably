@@ -103,14 +103,16 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 	return 0;
 }
 
-void prb_socket_close(struct prb_socket *s)
+void prb_socket_shutdown(struct prb_socket *s)
 {
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
+			PRB_DEBUG("socket", "Shutting down SSL socket\n");
 			wolfSSL_shutdown(s->ssl);
 			//wolfSSL_CTX_free(ctx);
-
+			/* fallthrough */
 		case PRB_SOCKET_RAW:
+			PRB_DEBUG("socket", "Shutting down raw socket\n");
 			//shutdown(s->sock);
 			break;
 	}

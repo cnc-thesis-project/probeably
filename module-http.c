@@ -173,6 +173,7 @@ static void http_module_run(struct probeably *p, char *ip, int port)
 
 	// TODO: do shit here
 
+	prb_socket_shutdown(&sock);
 	free_headers(headers);
 	free_status(status);
 }
