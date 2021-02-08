@@ -3,61 +3,54 @@
 #include <string.h>
 #include <hiredis.h>
 #include <async.h>
+#include <unistd.h>
 #include <adapters/libev.h>
 
 
 
-static void fakeProbing(const char *ip, int port)
+static void fake_probing(const char *ip, int port)
 {
 	printf("fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
 }
 
-static void monitorCallback(redisAsyncContext *c, void *r, void *privdata)
+static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	redisReply *reply = r;
 
-	if (!reply)
+	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+
+	printf("port callback\n");
+	sleep(1);
+
+	if (!reply || reply->elements < 2)
 		return;
 
-	// result from MONITOR itself isn't interesting
-	if (!strcmp(reply->str, "OK"))
+	char *values = strdup(reply->element[1]->str);
+
+	char *ip = strtok(reply->element[1]->str, ",");
+	int port = atoi(strtok(0, ","));
+	char *protocol = strtok(0, ",");
+	int timestamp = atoi(strtok(0, ","));
+	int status = atoi(strtok(0, ","));
+	int reason = atoi(strtok(0, ","));
+	int ttl = atoi(strtok(0, ","));
+
+	if (!ip || port <= 0) {
+		printf("error: got invalid format from redis:\n");
+		printf("%s\n", values);
+
+		free(values);
 		return;
-
-	//printf("REPLY: %s\n", reply->str);
-
-	char *msg = strdup(index(reply->str, ']') + 2);
-	char *cmd = strtok(msg, " ");
-
-	// we are interested in SADD command
-	if (cmd && !strcmp(cmd, "\"SADD\"")) {
-		char *arg = strtok(0, " ");
-
-		if (arg && strlen(arg) > 4 && !strncmp(arg + strlen(arg) - 4, "tcp", 3)) {
-			// found a open port
-			// arg is in format like "192.168.1.1:80/tcp" (including citation mark)
-
-			char *ip = arg + 1;
-			char *port_str = index(ip, ':') + 1;
-			char *timestamp = strtok(0, " ") + 1;
-
-			// remove delimiters
-			port_str[-1] = 0;
-			*index(port_str, '/') = 0;
-			// remove '"' at the end
-			*index(timestamp, '"') = 0;
-
-			int port = atoi(port_str);
-
-			printf("open port at: %s:%d (%s)\n", ip, port, timestamp);
-
-			fakeProbing(ip, port);
-		}
 	}
 
-	free(msg);
+	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
+
+	fake_probing(ip, port);
+
+	free(values);
 }
 
-static void connectCallback(const redisAsyncContext *c, int status)
+static void connect_callback(const redisAsyncContext *c, int status)
 {
 	if (status != REDIS_OK) {
 		printf("error: %s\n", c->errstr);
@@ -67,7 +60,7 @@ static void connectCallback(const redisAsyncContext *c, int status)
 	printf("connected (^ 3^)\n");
 }
 
-static void disconnectCallback(const redisAsyncContext *c, int status)
+static void disconnect_callback(const redisAsyncContext *c, int status)
 {
 	if (status != REDIS_OK) {
 		printf("error: %s\n", c->errstr);
@@ -95,9 +88,11 @@ int main(int argc, char **argv)
 	}
 
 	redisLibevAttach(EV_DEFAULT_ c);
-	redisAsyncSetConnectCallback(c, connectCallback);
-	redisAsyncSetDisconnectCallback(c, disconnectCallback);
-	redisAsyncCommand(c, monitorCallback, 0, "MONITOR");
+	redisAsyncSetConnectCallback(c, connect_callback);
+	redisAsyncSetDisconnectCallback(c, disconnect_callback);
+	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+
+	//fork();
 
 	ev_loop(EV_DEFAULT_ 0);
 
