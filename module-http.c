@@ -16,6 +16,12 @@ struct http_header {
 	char *value;
 };
 
+struct http_status {
+	char *version;
+	int code;
+	char *message;
+};
+
 // The parser is shit and needs to be checked for safety.
 static struct http_header *read_headers(struct prb_socket *s)
 {
@@ -71,7 +77,7 @@ static struct http_header *read_headers(struct prb_socket *s)
 	headers[header_index].value = 0;
 
 	for (int i = 0; i < header_index - 1; i++) {
-		PRB_DEBUG("http", "Have header '%s'='%s'\n", headers[i].name, headers[i].value);
+		PRB_DEBUG("http", "Response header: %s=%s\n", headers[i].name, headers[i].value);
 	}
 
 	return headers;
@@ -91,12 +97,13 @@ static void free_headers(struct http_header* headers)
 	free(headers);
 }
 
-static void free_status_line(char *status_line)
+static void free_status(struct http_status *status)
 {
-	free(status_line);
+	free(status->version);
+	free(status);
 }
 
-static char *read_status_line(struct prb_socket *s)
+static struct http_status *read_status(struct prb_socket *s)
 {
 	PRB_DEBUG("http", "Attempting to read status line\n");
 	unsigned int i;
@@ -112,11 +119,22 @@ static char *read_status_line(struct prb_socket *s)
 			break;
 		}
 	}
-	http_buffer[i] = '\0';
+	http_buffer[i-1] = '\0';
 
-	char *status = (char *) malloc(sizeof(char)*i);
-	snprintf(status, i + 1, "%s", http_buffer);
-	PRB_DEBUG("http", "Read status line '%s'\n", status);
+	char *status_line = (char *) malloc(sizeof(char)*i);
+	snprintf(status_line, i, "%s", http_buffer);
+	PRB_DEBUG("http", "Read status line '%s'\n", status_line);
+
+	struct http_status *status = malloc(sizeof(struct http_status));
+	status->version = strtok_r(status_line, " ", &status_line);
+	status->code = atoi(strtok_r(NULL, " ", &status_line));
+	status->message = strtok_r(NULL, "", &status_line);
+
+	PRB_DEBUG("http", "Status: version=%s, code=%d, message=%s\n",
+			status->version,
+			status->code,
+			status->message);
+
 	return status;
 }
 
@@ -147,11 +165,13 @@ static void http_module_run(struct probeably *p, char *ip, int port)
 	count = prb_socket_write(&sock, http_buffer, strlen(http_buffer));
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 
-	char *status_line = read_status_line(&sock);
+	struct http_status *status = read_status(&sock);
 	struct http_header *headers = read_headers(&sock);
 
+
+
 	free_headers(headers);
-	free_status_line(status_line);
+	free_status(status);
 }
 
 struct module module_http = {
