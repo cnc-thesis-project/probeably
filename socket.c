@@ -1,3 +1,7 @@
+/*
+ * TODO: Do internal buffering in the read and write routines.
+ */
+
 #include <wolfssl/ssl.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -122,11 +126,17 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 				printf("Failed writing to SSL socket: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
 			}
-			break;
+			PRB_DEBUG("read", "Wrote %d bytes to SSL socket\n", err);
+			return err;
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("write", "Writing data to raw socket\n");
-			return write(s->sock, buf, count);
-			break;
+			err = write(s->sock, buf, count);
+			if (err < 0) {
+				perror("write");
+				return -1;
+			}
+			PRB_DEBUG("read", "Wrote %d bytes to raw socket\n", err);
+			return err;
 		default:
 			return -1;
 	}
@@ -143,7 +153,8 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 				printf("Failed reading from SSL socket: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
 			}
-			break;
+			PRB_DEBUG("read", "Read %d bytes from SSL socket\n", err);
+			return err;
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("read", "Reading data from raw socket\n");
 			err = read(s->sock, buf, count);
@@ -151,6 +162,9 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 				perror("read");
 				return -1;
 			}
-			break;
+			PRB_DEBUG("read", "Read %d bytes from raw socket\n", err);
+			return err;
+		default:
+			return -1;
 	}
 }
