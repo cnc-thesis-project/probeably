@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <wolfssl/ssl.h>
 #include "module-tls.h"
 #include "module.h"

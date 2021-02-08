@@ -10,7 +10,7 @@ $(PROGRAM): main.c
 	$(CC) -o $(PROGRAM) $(CFLAGS) main.c ./hiredis/libhiredis.a
 
 test: $(TEST_SOURCES)
-	$(CC) -o test -I./include -lwolfssl $(TEST_SOURCES)
+	$(CC) -o test -I./include $(TEST_SOURCES) -lwolfssl -lm
 
 clean:
 	rm -f test

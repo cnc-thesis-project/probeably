@@ -5,6 +5,7 @@
 #include <wolfssl/ssl.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <stdlib.h>
 #include "probeably.h"
 #include "socket.h"
 
