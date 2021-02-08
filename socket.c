@@ -27,7 +27,7 @@ static int connect_raw(struct prb_socket *s, char *ip, int port)
 {
 	int sock;
 	int err;
-	PRB_DEBUG("connect", "Connecting raw socket\n");
+	PRB_DEBUG("socket", "Connecting raw socket\n");
 	s->sock = socket(AF_INET, SOCK_STREAM, 0);
 	fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) | O_NONBLOCK);
 	struct sockaddr_in addr;
@@ -41,13 +41,13 @@ static int connect_raw(struct prb_socket *s, char *ip, int port)
 		return -1;
 	}
 
-	PRB_DEBUG("connect", "Connecting raw socket successful\n");
+	PRB_DEBUG("socket", "Connecting raw socket successful\n");
 	return 0;
 }
 
 int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 {
-	PRB_DEBUG("connect", "Initializing connection to %s:%d\n", ip, port);
+	PRB_DEBUG("socket", "Initializing connection to %s:%d\n", ip, port);
 
 	connect_raw(s, ip, port);
 
@@ -56,7 +56,7 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 	wolfSSL_CTX_set_timeout(ctx, TIMEOUT);
 
 	if (s->type == PRB_SOCKET_SSL || s->type == PRB_SOCKET_UNKNOWN) {
-		PRB_DEBUG("connect", "Attempting to perform SSL handshake\n");
+		PRB_DEBUG("socket", "Attempting to perform SSL handshake\n");
 		if ( (ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())) == NULL){
 			fprintf(stderr, "wolfSSL_CTX_new error.\n");
 			exit(EXIT_FAILURE);
@@ -83,7 +83,7 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 			}
 		}
 		if (err != SSL_SUCCESS) {
-			PRB_DEBUG("connect", "SSL handshake failed\n");
+			PRB_DEBUG("socket", "SSL handshake failed\n");
 			printf("failed connecting to SSL server: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
@@ -93,13 +93,13 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 			return 0;
 		}
 		s->type = PRB_SOCKET_SSL;
-		PRB_DEBUG("connect", "SSL handshake was successful\n");
+		PRB_DEBUG("socket", "SSL handshake was successful\n");
 		wolfSSL_set_using_nonblock(s->ssl, 0);
 	}
 
 	fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) & ~O_NONBLOCK);
 
-	PRB_DEBUG("connect", "Connection was successful\n");
+	PRB_DEBUG("socket", "Connection was successful\n");
 	return 0;
 }
 
@@ -121,22 +121,22 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 	int err;
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
-			PRB_DEBUG("write", "Writing data to SSL socket\n");
+			PRB_DEBUG("socket", "Writing data to SSL socket\n");
 			err = wolfSSL_write(s->ssl, buf, (int) count);
 			if (err < 0) {
 				printf("Failed writing to SSL socket: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
 			}
-			PRB_DEBUG("read", "Wrote %d bytes to SSL socket\n", err);
+			PRB_DEBUG("socket", "Wrote %d bytes to SSL socket\n", err);
 			return err;
 		case PRB_SOCKET_RAW:
-			PRB_DEBUG("write", "Writing data to raw socket\n");
+			PRB_DEBUG("socket", "Writing data to raw socket\n");
 			err = write(s->sock, buf, count);
 			if (err < 0) {
 				perror("write");
 				return -1;
 			}
-			PRB_DEBUG("read", "Wrote %d bytes to raw socket\n", err);
+			PRB_DEBUG("socket", "Wrote %d bytes to raw socket\n", err);
 			return err;
 		default:
 			return -1;
@@ -148,22 +148,22 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 	int err;
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
-			PRB_DEBUG("read", "Reading data from SSL socket\n");
+			PRB_DEBUG("socket", "Reading data from SSL socket\n");
 			err = wolfSSL_read(s->ssl, buf, (int) count);
 			if (err < 0) {
 				printf("Failed reading from SSL socket: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
 			}
-			PRB_DEBUG("read", "Read %d bytes from SSL socket\n", err);
+			PRB_DEBUG("socket", "Read %d bytes from SSL socket\n", err);
 			return err;
 		case PRB_SOCKET_RAW:
-			PRB_DEBUG("read", "Reading data from raw socket\n");
+			PRB_DEBUG("socket", "Reading data from raw socket\n");
 			err = read(s->sock, buf, count);
 			if (err < 0) {
 				perror("read");
 				return -1;
 			}
-			PRB_DEBUG("read", "Read %d bytes from raw socket\n", err);
+			PRB_DEBUG("socket", "Read %d bytes from raw socket\n", err);
 			return err;
 		default:
 			return -1;
