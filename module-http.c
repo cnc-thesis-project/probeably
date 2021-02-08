@@ -77,6 +77,25 @@ static struct http_header *read_headers(struct prb_socket *s)
 	return headers;
 }
 
+static void free_headers(struct http_header* headers)
+{
+	for (int i = 0;; i++) {
+		struct http_header *header = &headers[i];
+		if (!header->name || !header->value) {
+			break;
+		}
+		// We only have to free the name,
+		// since the value is part of the same memory.
+		free(header->name);
+	}
+	free(headers);
+}
+
+static void free_status_line(char *status_line)
+{
+	free(status_line);
+}
+
 static char *read_status_line(struct prb_socket *s)
 {
 	PRB_DEBUG("http", "Attempting to read status line\n");
@@ -128,8 +147,11 @@ static void http_module_run(struct probeably *p, char *ip, int port)
 	count = prb_socket_write(&sock, http_buffer, strlen(http_buffer));
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 
-	char *status = read_status_line(&sock);
+	char *status_line = read_status_line(&sock);
 	struct http_header *headers = read_headers(&sock);
+
+	free_headers(headers);
+	free_status_line(status_line);
 }
 
 struct module module_http = {
