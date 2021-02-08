@@ -34,7 +34,7 @@ static struct http_header *read_headers(struct prb_socket *s)
 	while (header_index < MAX_HEADERS) {
 		int i = 0;
 		for (;;) {
-			if (i >= HTTP_BUFFER_SIZE) {
+			if (i >= HTTP_BUFFER_SIZE - 1) {
 				break;
 			}
 			int err = prb_socket_read(s, &http_buffer[i], 1);
@@ -59,7 +59,7 @@ static struct http_header *read_headers(struct prb_socket *s)
 		http_buffer[i] = '\0';
 		PRB_DEBUG("http", "Read line '%s'\n", http_buffer);
 		char *line = malloc(i + 1);
-		memcpy(line, http_buffer, i);
+		memcpy(line, http_buffer, i + 1);
 		struct http_header *header = &headers[header_index];
 		header->name = strtok_r(line, ":", &line);
 		header->value = strtok_r(NULL, "", &line);
@@ -85,6 +85,8 @@ static struct http_header *read_headers(struct prb_socket *s)
 
 static void free_headers(struct http_header* headers)
 {
+	// TODO: fix bug where sometimes it seg faults while freeing
+	PRB_DEBUG("http", "Freeing headers\n");
 	for (int i = 0;; i++) {
 		struct http_header *header = &headers[i];
 		if (!header->name || !header->value) {
@@ -99,6 +101,7 @@ static void free_headers(struct http_header* headers)
 
 static void free_status(struct http_status *status)
 {
+	PRB_DEBUG("http", "Freeing status\n");
 	free(status->version);
 	free(status);
 }
