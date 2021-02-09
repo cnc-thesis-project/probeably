@@ -84,6 +84,8 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 		if (err != SSL_SUCCESS) {
 			PRB_DEBUG("socket", "SSL handshake failed\n");
 			printf("failed connecting to SSL server: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
+			wolfSSL_CTX_free(s->ctx);
+			wolfSSL_free(s->ssl);
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
 			}
