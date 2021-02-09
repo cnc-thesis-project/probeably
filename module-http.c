@@ -155,7 +155,7 @@ static void http_module_cleanup(struct probeably *p)
 
 }
 
-static int http_module_run(struct probeably *p, char *ip, int port)
+static int http_module_run(struct probeably *p, const char *ip, int port)
 {
 	PRB_DEBUG("http", "running module on %s:%d\n", ip, port);
 

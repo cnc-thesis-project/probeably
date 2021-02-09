@@ -3,8 +3,8 @@
 #include <wolfssl/ssl.h>
 #include "module-tls.h"
 #include "module.h"
+#include "socket.h"
 #include "probeably.h"
-
 
 
 static void tls_module_init(struct probeably *p)
@@ -17,7 +17,7 @@ static void tls_module_cleanup(struct probeably *p)
 	wolfSSL_Cleanup();
 }
 
-static void tls_module_run(struct probeably *p, char *ip, int port)
+static int tls_module_run(struct probeably *p, const char *ip, int port)
 {
 
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
