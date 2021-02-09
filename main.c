@@ -7,6 +7,8 @@
 #include <adapters/libev.h>
 
 
+pid_t *child = 0;
+int child_len = 8;
 
 static void fake_probing(const char *ip, int port)
 {
@@ -20,7 +22,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
 
 	printf("port callback\n");
-	sleep(1);
+	ev_sleep(3);
 
 	if (!reply || reply->elements < 2)
 		return;
@@ -70,6 +72,12 @@ static void disconnect_callback(const redisAsyncContext *c, int status)
 	printf("disconnect ( ˘ω˘)\n");
 }
 
+static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
+{
+	ev_break(loop, EVBREAK_ALL);
+	kill(0, SIGINT);
+}
+
 int main(int argc, char **argv)
 {
 	redisAsyncContext *c;
@@ -78,6 +86,8 @@ int main(int argc, char **argv)
 
 	int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
+	ev_signal signal_watcher;
+	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
 	c = redisAsyncConnect(hostname, port);
 
 	if (c->err) {
@@ -87,16 +97,28 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	redisLibevAttach(EV_DEFAULT_ c);
-	redisAsyncSetConnectCallback(c, connect_callback);
-	redisAsyncSetDisconnectCallback(c, disconnect_callback);
-	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+	child = malloc(sizeof(pid_t) * child_len);
 
-	//fork();
+	pid_t pid = 0;
+	for (int i = 0; i < child_len; i++) {
+		pid = fork();
+		if (pid == 0)
+			break;
+		child[i] = pid;
+	}
 
+	if (pid != 0) {
+		ev_signal_start(EV_DEFAULT, &signal_watcher);
+	} else {
+		redisLibevAttach(EV_DEFAULT_ c);
+		redisAsyncSetConnectCallback(c, connect_callback);
+		redisAsyncSetDisconnectCallback(c, disconnect_callback);
+		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+	}
 	ev_loop(EV_DEFAULT_ 0);
 
 	redisAsyncFree(c);
+	free(child);
 
 	return 0;
 }
