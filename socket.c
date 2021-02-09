@@ -53,6 +53,11 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 
 	int err;
 	WOLFSSL_CTX* ctx;
+	if ( (ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL){
+		fprintf(stderr, "wolfSSL_CTX_new error.\n");
+		return -1;
+	}
+
 	wolfSSL_CTX_set_timeout(ctx, TIMEOUT);
 
 	if (s->type == PRB_SOCKET_SSL || s->type == PRB_SOCKET_UNKNOWN) {
