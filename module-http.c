@@ -73,8 +73,8 @@ static struct http_header *read_headers(struct prb_socket *s)
 	}
 
 	// Set final termination header.
-	headers[header_index].name = 0;
-	headers[header_index].value = 0;
+	headers[header_index - 1].name = 0;
+	headers[header_index - 1].value = 0;
 
 	for (int i = 0; i < header_index - 1; i++) {
 		PRB_DEBUG("http", "Response header: %s=%s\n", headers[i].name, headers[i].value);
@@ -85,7 +85,6 @@ static struct http_header *read_headers(struct prb_socket *s)
 
 static void free_headers(struct http_header* headers)
 {
-	// TODO: fix bug where sometimes it seg faults while freeing
 	PRB_DEBUG("http", "Freeing headers\n");
 	for (int i = 0;; i++) {
 		struct http_header *header = &headers[i];
