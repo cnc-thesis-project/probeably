@@ -5,6 +5,7 @@
 #include <async.h>
 #include <unistd.h>
 #include <adapters/libev.h>
+#include <getopt.h>
 #include "probeably.h"
 #include "module-http.h"
 #include "module.h"
@@ -103,13 +104,65 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 	kill(0, SIGINT);
 }
 
+static void version()
+{
+	printf("probeably %s\n", VERSION);
+}
+
+static void usage()
+{
+	printf(
+			"usage: probeably [options]\n"
+			"  --help, -h        Print usage.\n"
+			"  --version, -v     Print version string.\n"
+			"  --redis-host, -H  Redis host.\n"
+			"  --redis-port, -p  Redis port.\n"
+		  );
+}
+
 int main(int argc, char **argv)
 {
+	const char *hostname = "127.0.0.1";
+	int port = 6379;
+
+	while (1) {
+		static struct option long_opts[] = {
+			{"help", no_argument, 0, 'h'},
+			{"version", no_argument, 0, 'v'},
+			{"redis-host", required_argument, 0, 'H'},
+			{"redis-port", required_argument, 0, 'p'},
+		};
+		int opt_index = 0;
+		int c = getopt_long(argc, argv, "hvH:p:", long_opts, &opt_index);
+
+		if (c == -1) {
+			break;
+		}
+
+		switch (c) {
+			case 'h':
+				usage();
+				exit(EXIT_SUCCESS);
+				break;
+			case 'v':
+				version();
+				exit(EXIT_SUCCESS);
+				break;
+			case 'H':
+				hostname = optarg;
+				break;
+			case 'p':
+				port = atoi(optarg);
+				break;
+
+			default:
+				fprintf(stderr, "Unrecognized option '%c'\n", c);
+				return EXIT_FAILURE;
+		}
+	}
+
 	redisAsyncContext *c;
 	redisReply *reply;
-	const char *hostname = (argc > 1) ? argv[1] : "127.0.0.1";
-
-	int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
 	prb_socket_init();
 	init_modules();
