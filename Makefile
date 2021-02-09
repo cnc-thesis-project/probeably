@@ -11,7 +11,7 @@ $(PROGRAM): main.c
 	$(CC) -o $(PROGRAM) $(CFLAGS) main.c ./hiredis/libhiredis.a
 
 test: $(TEST_SOURCES)
-	$(CC) -o test -I./include $(TEST_SOURCES) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o test -I./include $(TEST_SOURCES) $(LDFLAGS)
 
 clean:
 	rm -f test
