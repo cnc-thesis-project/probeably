@@ -113,10 +113,10 @@ static void usage()
 {
 	printf(
 			"usage: probeably [options]\n"
-			"  --help, -h        Print usage.\n"
-			"  --version, -v     Print version string.\n"
-			"  --redis-host, -H  Redis host.\n"
-			"  --redis-port, -p  Redis port.\n"
+			"  -h, --help        Print usage.\n"
+			"  -v, --version     Print version string.\n"
+			"  -H, --redis-host  Redis host.\n"
+			"  -p, --redis-port  Redis port.\n"
 		  );
 }
 
