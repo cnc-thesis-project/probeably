@@ -4,7 +4,7 @@
 
 #define MODULE_REQUIRES_NEW_CONNECTION (1 << 0)
 
-struct module {
+struct prb_module {
 	char *name;
 	int flags;
 	void (*init)(struct probeably *p);

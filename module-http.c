@@ -188,7 +188,7 @@ ret_shutdown:
 	prb_socket_shutdown(&sock);
 }
 
-struct module module_http = {
+struct prb_module module_http = {
 	.init = http_module_init,
 	.cleanup = http_module_cleanup,
 	.run = http_module_run,

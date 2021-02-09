@@ -11,17 +11,34 @@
 
 pid_t *child = 0;
 int child_len = 8;
+struct probeably prb;
 
-static void fake_probing(const char *ip, int port)
+#define NUM_MODULES 1
+struct prb_module *modules[NUM_MODULES] = {
+	&module_http,
+};
+
+static void init_modules()
 {
-	struct module *mod = &module_http;
-	struct probeably p;
+	for (int i = 0; i < NUM_MODULES; i++) {
+		modules[i]->init(&prb);
+	}
+}
 
-	//mod->init(&p);
-	mod->run(&p, ip, port);
-	//mod->cleanup(&p);
+static void cleanup_modules()
+{
+	for (int i = 0; i < NUM_MODULES; i++) {
+		modules[i]->cleanup(&prb);
+	}
+}
 
-	PRB_DEBUG(__FILE__, "fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
+static void run_modules(const char *ip, int port)
+{
+	for (int i = 0; i < NUM_MODULES; i++) {
+		modules[i]->run(&prb, ip, port);
+	}
+
+	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
 }
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
@@ -55,7 +72,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
 
-	fake_probing(ip, port);
+	run_modules(ip, port);
 
 	free(values);
 }
@@ -95,6 +112,7 @@ int main(int argc, char **argv)
 	int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
 	prb_socket_init();
+	init_modules();
 
 	ev_signal signal_watcher;
 	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
@@ -127,6 +145,7 @@ int main(int argc, char **argv)
 	}
 	ev_loop(EV_DEFAULT_ 0);
 
+	cleanup_modules();
 	prb_socket_cleanup();
 	redisAsyncFree(c);
 	free(child);
