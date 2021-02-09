@@ -115,7 +115,7 @@ void prb_socket_shutdown(struct prb_socket *s)
 			/* fallthrough */
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Shutting down raw socket\n");
-			//shutdown(s->sock);
+			shutdown(s->sock, SHUT_RDWR);
 			break;
 	}
 }
