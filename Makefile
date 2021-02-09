@@ -2,7 +2,7 @@ PROGRAM := probeably
 VERSION := $(shell git describe --always)
 
 INCLUDE := -I./hiredis/ -I./include
-CFLAGS := $(INCLUDE) -fsanitize=address -ggdb -D VERSION=\"$(VERSION)\"
+CFLAGS := $(INCLUDE) -fsanitize=address -ggdb -D PRB_VERSION=\"$(VERSION)\"
 LDFLAGS := -lasan -lwolfssl -lm -lev
 SOURCES := main.c module-http.c socket.c
 

@@ -106,7 +106,7 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 
 static void version()
 {
-	printf("probeably %s\n", VERSION);
+	printf("probeably %s\n", PRB_VERSION);
 }
 
 static void usage()
