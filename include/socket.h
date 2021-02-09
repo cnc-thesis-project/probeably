@@ -9,6 +9,7 @@
 struct prb_socket {
 	int type;
 	WOLFSSL *ssl;
+	WOLFSSL_CTX* ctx;
 	int sock;
 };
 

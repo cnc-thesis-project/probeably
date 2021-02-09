@@ -52,24 +52,18 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 	connect_raw(s, ip, port);
 
 	int err;
-	WOLFSSL_CTX* ctx;
-	if ( (ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL){
-		fprintf(stderr, "wolfSSL_CTX_new error.\n");
-		return -1;
-	}
-
-	wolfSSL_CTX_set_timeout(ctx, TIMEOUT);
 
 	if (s->type == PRB_SOCKET_SSL || s->type == PRB_SOCKET_UNKNOWN) {
 		PRB_DEBUG("socket", "Attempting to perform SSL handshake\n");
-		if ( (ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())) == NULL){
+		if ( (s->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())) == NULL){
 			fprintf(stderr, "wolfSSL_CTX_new error.\n");
 			exit(EXIT_FAILURE);
 		}
 
-		wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+		wolfSSL_CTX_set_timeout(s->ctx, TIMEOUT);
+		wolfSSL_CTX_set_verify(s->ctx, SSL_VERIFY_NONE, 0);
 
-		if( (s->ssl = wolfSSL_new(ctx)) == NULL) {
+		if( (s->ssl = wolfSSL_new(s->ctx)) == NULL) {
 			fprintf(stderr, "wolfSSL_new error.\n");
 			exit(EXIT_FAILURE);
 		}
@@ -114,7 +108,8 @@ void prb_socket_shutdown(struct prb_socket *s)
 		case PRB_SOCKET_SSL:
 			PRB_DEBUG("socket", "Shutting down SSL socket\n");
 			wolfSSL_shutdown(s->ssl);
-			//wolfSSL_CTX_free(ctx);
+			wolfSSL_CTX_free(s->ctx);
+			wolfSSL_free(s->ssl);
 			/* fallthrough */
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Shutting down raw socket\n");
