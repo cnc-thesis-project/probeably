@@ -86,6 +86,7 @@ int prb_socket_connect(struct prb_socket *s, char *ip, int port)
 			printf("failed connecting to SSL server: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 			wolfSSL_CTX_free(s->ctx);
 			wolfSSL_free(s->ssl);
+			shutdown(s->sock, SHUT_RDWR);
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
 			}

@@ -109,7 +109,8 @@ static struct http_status *read_status(struct prb_socket *s)
 {
 	PRB_DEBUG("http", "Attempting to read status line\n");
 	unsigned int i;
-	for (i = 0; i < HTTP_BUFFER_SIZE; i++) {
+
+	for (i = 0; i < HTTP_BUFFER_SIZE-1; i++) {
 		int err = prb_socket_read(s, &http_buffer[i], 1);
 		if (err <= 0) {
 			return NULL;
@@ -121,7 +122,11 @@ static struct http_status *read_status(struct prb_socket *s)
 			break;
 		}
 	}
-	http_buffer[i-1] = '\0';
+	http_buffer[i] = '\0';
+
+	if (memcmp("HTTP", http_buffer, 4)) {
+		return NULL;
+	}
 
 	char *status_line = (char *) malloc(sizeof(char)*i);
 	snprintf(status_line, i, "%s", http_buffer);
@@ -150,14 +155,14 @@ static void http_module_cleanup(struct probeably *p)
 
 }
 
-static void http_module_run(struct probeably *p, char *ip, int port)
+static int http_module_run(struct probeably *p, char *ip, int port)
 {
 	PRB_DEBUG("http", "running module on %s:%d\n", ip, port);
 
 	struct prb_socket sock = {0};
 	sock.type = PRB_SOCKET_UNKNOWN;
 	if (prb_socket_connect(&sock, ip, port) < 0) {
-		return;
+		return -1;
 	}
 
 	strcpy(http_buffer, "GET / HTTP/1.1\r\nHost: www\r\n\r\n");
@@ -168,13 +173,19 @@ static void http_module_run(struct probeably *p, char *ip, int port)
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 
 	struct http_status *status = read_status(&sock);
+	if (!status) {
+		PRB_DEBUG("http", "Not a HTTP protocol\n");
+		goto ret_shutdown;
+		return -1;
+	}
 	struct http_header *headers = read_headers(&sock);
 
 	// TODO: do shit here
 
-	prb_socket_shutdown(&sock);
 	free_headers(headers);
 	free_status(status);
+ret_shutdown:
+	prb_socket_shutdown(&sock);
 }
 
 struct module module_http = {

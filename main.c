@@ -5,14 +5,23 @@
 #include <async.h>
 #include <unistd.h>
 #include <adapters/libev.h>
-
+#include "probeably.h"
+#include "module-http.h"
+#include "module.h"
 
 pid_t *child = 0;
 int child_len = 8;
 
 static void fake_probing(const char *ip, int port)
 {
-	printf("fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
+	struct module *mod = &module_http;
+	struct probeably p;
+
+	//mod->init(&p);
+	mod->run(&p, ip, port);
+	//mod->cleanup(&p);
+
+	PRB_DEBUG(__FILE__, "fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
 }
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
@@ -22,7 +31,6 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
 
 	printf("port callback\n");
-	ev_sleep(3);
 
 	if (!reply || reply->elements < 2)
 		return;
@@ -86,6 +94,8 @@ int main(int argc, char **argv)
 
 	int port = (argc > 2) ? atoi(argv[2]) : 6379;
 
+	prb_socket_init();
+
 	ev_signal signal_watcher;
 	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
 	c = redisAsyncConnect(hostname, port);
@@ -117,6 +127,7 @@ int main(int argc, char **argv)
 	}
 	ev_loop(EV_DEFAULT_ 0);
 
+	prb_socket_cleanup();
 	redisAsyncFree(c);
 	free(child);
 
