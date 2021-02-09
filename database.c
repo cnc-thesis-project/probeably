@@ -1,0 +1,75 @@
+#include <sqlite3.h>
+#include "probeably.h"
+#include "time.h"
+
+sqlite3 *prb_open_database(const char *path)
+{
+	sqlite3 *db = 0;
+	int rc = sqlite3_open(path, &db);
+	if (rc != SQLITE_OK) {
+		PRB_DEBUG("database", "Failed to open sqlite3 database file:\n%s\n", sqlite3_errmsg(db));
+		return 0;
+	}
+
+	// set 10 seconds timeout
+	sqlite3_busy_timeout(db, 10000);
+
+	return db;
+}
+
+int prb_init_database(sqlite3 *db)
+{
+	// name: the name of the module that probed
+	// type: what the data contains, used to help pre-processor to determine the "phase"
+	// ip: probed ip address
+	// port: probed port
+	// data: data (o.O)
+	// scan_time: time the masscan got SYN-ACK from the port
+	// probe_time: time the module stored this data into database
+
+	char *query = "CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT, data TEXT, scan_time INT, probe_time INT);";
+	char *err_msg = 0;
+
+	int rc = sqlite3_exec(db, query, 0, 0, &err_msg);
+	if (rc != SQLITE_OK) {
+		PRB_DEBUG("database", "Failed to create database table:\n%s\n", err_msg);
+		return -1;
+	}
+
+	return 0;
+}
+
+int prb_write_data(	sqlite3 *db, const char *name, const char *type, const char *ip, int port,
+					const char *data, int scan_time)
+{
+	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?);";
+	char *err_msg = 0;
+	sqlite3_stmt *res = 0;
+
+	int rc = sqlite3_prepare_v2(db, query, -1, &res, 0);
+	if (rc != SQLITE_OK) {
+		PRB_DEBUG("database", "Failed to compile statement:\n%s\n", sqlite3_errmsg(db));
+		return -1;
+	}
+
+	sqlite3_bind_text(res, 1, name, -1, 0);
+	sqlite3_bind_text(res, 2, type, -1, 0);
+	sqlite3_bind_text(res, 3, ip, -1, 0);
+	sqlite3_bind_int(res, 4, port);
+	sqlite3_bind_text(res, 5, data, -1, 0);
+	sqlite3_bind_int(res, 6, scan_time);
+	sqlite3_bind_int(res, 7, time(0));
+
+	rc = sqlite3_step(res);
+	if (rc != SQLITE_DONE) {
+		PRB_DEBUG("database", "Failed to execute statement:\n%s\n", sqlite3_errmsg(db));
+		return -1;
+	}
+
+	sqlite3_finalize(res);
+
+	PRB_DEBUG("database", "Wrote data to database\n");
+
+	return 0;
+
+}

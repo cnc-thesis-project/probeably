@@ -2,12 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <hiredis.h>
+#include <sqlite3.h>
 #include <async.h>
 #include <unistd.h>
 #include <adapters/libev.h>
 #include "probeably.h"
 #include "module-http.h"
 #include "module.h"
+#include "socket.h"
+#include "database.h"
 
 pid_t *child = 0;
 int child_len = 8;
@@ -27,8 +30,9 @@ static void fake_probing(const char *ip, int port)
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	redisReply *reply = r;
+	sqlite3 *db = privdata;
 
-	redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
 	printf("port callback\n");
 
@@ -56,6 +60,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
 
 	fake_probing(ip, port);
+	prb_write_data(db, "test-module", "port-scan", ip, port, "hello", timestamp);
 
 	free(values);
 }
@@ -117,15 +122,31 @@ int main(int argc, char **argv)
 		child[i] = pid;
 	}
 
+	// sqlite database has to be opened after fork or it may corrupt the file
+	sqlite3 *db = prb_open_database("probeably.db");
+	if (!db)
+		return EXIT_FAILURE;
+
 	if (pid != 0) {
+		// parent path
+		if (prb_init_database(db) == -1)
+			return EXIT_FAILURE; // TODO: kill childrens
+
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
 	} else {
+		// child path
+
+		// give parent time to create table to ensure it is available
+		sleep(1);
+
 		redisLibevAttach(EV_DEFAULT_ c);
 		redisAsyncSetConnectCallback(c, connect_callback);
 		redisAsyncSetDisconnectCallback(c, disconnect_callback);
-		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+		redisAsyncCommand(c, port_callback, db, "BLPOP port 0");
 	}
 	ev_loop(EV_DEFAULT_ 0);
+
+	sqlite3_close(db);
 
 	prb_socket_cleanup();
 	redisAsyncFree(c);
