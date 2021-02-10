@@ -156,7 +156,7 @@ static void http_module_cleanup(struct probeably *p)
 
 }
 
-static int http_module_run(struct probeably *p, struct prb_request *r)
+static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
 
 	char *ip = r->ip;
@@ -165,9 +165,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r)
 
 	PRB_DEBUG("http", "running module on %s:%d\n", ip, port);
 
-	struct prb_socket sock = {0};
-	sock.type = PRB_SOCKET_UNKNOWN;
-	if (prb_socket_connect(&sock, ip, port) < 0) {
+	if (prb_socket_connect(sock, ip, port) < 0) {
 		return -1;
 	}
 
@@ -175,7 +173,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r)
 
 	int count;
 	PRB_DEBUG("http", "Sending request '%s'\n", http_buffer);
-	count = prb_socket_write(&sock, http_buffer, strlen(http_buffer));
+	count = prb_socket_write(sock, http_buffer, strlen(http_buffer));
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 
 	struct http_status *status = read_status(&sock);
@@ -184,7 +182,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r)
 		goto ret_shutdown;
 		return -1;
 	}
-	struct http_header *headers = read_headers(&sock);
+	struct http_header *headers = read_headers(sock);
 
 	// Write status code to database
 	char code_str[4];
@@ -205,7 +203,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r)
 	free_headers(headers);
 	free_status(status);
 ret_shutdown:
-	prb_socket_shutdown(&sock);
+	prb_socket_shutdown(sock);
 }
 
 struct prb_module module_http = {

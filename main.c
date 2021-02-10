@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include "probeably.h"
 #include "module-http.h"
+#include "module-ssh.h"
 #include "module.h"
 #include "socket.h"
 #include "database.h"
@@ -17,9 +18,10 @@ pid_t *child = 0;
 int child_len = 8;
 struct probeably prb;
 
-#define NUM_MODULES 1
+#define NUM_MODULES 2
 struct prb_module *modules[NUM_MODULES] = {
 	&module_http,
+	&module_ssh,
 };
 
 static void init_modules()
@@ -38,8 +40,10 @@ static void cleanup_modules()
 
 static void run_modules(struct prb_request *r)
 {
+	struct prb_socket s = {0};
+	s.type = PRB_SOCKET_UNKNOWN;
 	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->run(&prb, r);
+		modules[i]->run(&prb, r, &s);
 	}
 
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
@@ -93,7 +97,7 @@ static void connect_callback(const redisAsyncContext *c, int status)
 		return;
 	}
 
-	printf("connected (^ 3^)\n");
+	printf("(^ 3^)\n");
 }
 
 static void disconnect_callback(const redisAsyncContext *c, int status)
@@ -119,6 +123,7 @@ static void version()
 
 static void usage()
 {
+
 	printf(
 			"usage: probeably [options]\n"
 			"  -h, --help        Print usage.\n"
@@ -185,6 +190,8 @@ int main(int argc, char **argv)
 
 		exit(1);
 	}
+
+	printf("Starting workers...\n");
 
 	child = malloc(sizeof(pid_t) * child_len);
 
