@@ -9,7 +9,7 @@ struct prb_module {
 	int flags;
 	void (*init)(struct probeably *p);
 	void (*cleanup)(struct probeably *p);
-	int (*run)(struct probeably *p, char *ip, int port);
+	int (*run)(struct probeably *p, const char *ip, int port);
 };
 
 #endif

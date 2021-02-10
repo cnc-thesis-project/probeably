@@ -23,7 +23,7 @@ void prb_socket_cleanup()
 	wolfSSL_Cleanup();
 }
 
-static int connect_raw(struct prb_socket *s, char *ip, int port)
+static int connect_raw(struct prb_socket *s, const char *ip, int port)
 {
 	int sock;
 	int err;
@@ -45,7 +45,7 @@ static int connect_raw(struct prb_socket *s, char *ip, int port)
 	return 0;
 }
 
-int prb_socket_connect(struct prb_socket *s, char *ip, int port)
+int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 {
 	PRB_DEBUG("socket", "Initializing connection to %s:%d\n", ip, port);
 
