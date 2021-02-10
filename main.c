@@ -15,7 +15,7 @@
 int WORKER_ID = 0;
 
 pid_t *child = 0;
-int child_len = 8;
+int child_len = 32;
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
