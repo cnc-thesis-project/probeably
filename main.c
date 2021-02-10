@@ -43,7 +43,7 @@ static void run_modules(const char *ip, int port, int timestamp)
 	}
 
 	// TODO: remove this, it's just a example
-	prb_write_data(prb.db, "test-module", "port-scan", ip, port, "hello", timestamp);
+	prb_write_data(&prb, "test-module", "port-scan", ip, port, "hello", timestamp);
 
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
 }
