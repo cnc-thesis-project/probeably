@@ -45,6 +45,11 @@ static void run_modules(struct prb_request *r)
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
 }
 
+static void run_ip_modules(const char *ip, int timestamp)
+{
+	PRB_DEBUG("main", "ip scan: %s (%d)\n", ip, timestamp);
+}
+
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	redisReply *reply = r;
@@ -67,11 +72,15 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	int reason = atoi(strtok(0, ","));
 	int ttl = atoi(strtok(0, ","));
 
-	if (!ip || port <= 0) {
+	if (!ip || port < 0) {
 		printf("error: got invalid format from redis:\n");
 		printf("%s\n", values);
 
 		free(values);
+		return;
+	} else if (port == 0) {
+		// ip related analysis stuff, e.g. geoip
+		run_ip_modules(ip, timestamp);
 		return;
 	}
 
