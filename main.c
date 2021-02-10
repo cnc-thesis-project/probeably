@@ -36,16 +36,13 @@ static void cleanup_modules()
 	}
 }
 
-static void run_modules(const char *ip, int port, int timestamp)
+static void run_modules(struct prb_request *r)
 {
 	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->run(&prb, ip, port);
+		modules[i]->run(&prb, r);
 	}
 
-	// TODO: remove this, it's just a example
-	prb_write_data(&prb, "test-module", "port-scan", ip, port, "hello", timestamp);
-
-	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", ip, port);
+	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
 }
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
@@ -80,7 +77,11 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
 
-	run_modules(ip, port, timestamp);
+	struct prb_request req;
+	req.ip = ip;
+	req.port = port;
+	req.timestamp = timestamp;
+	run_modules(&req);
 
 	free(values);
 }

@@ -4,6 +4,7 @@
 #include "module.h"
 #include "module-http.h"
 #include "socket.h"
+#include "database.h"
 #include "probeably.h"
 
 #define HTTP_BUFFER_SIZE 512
@@ -155,8 +156,13 @@ static void http_module_cleanup(struct probeably *p)
 
 }
 
-static int http_module_run(struct probeably *p, const char *ip, int port)
+static int http_module_run(struct probeably *p, struct prb_request *r)
 {
+
+	char *ip = r->ip;
+	int port = r->port;
+	int timestamp = r->timestamp;
+
 	PRB_DEBUG("http", "running module on %s:%d\n", ip, port);
 
 	struct prb_socket sock = {0};
@@ -180,7 +186,21 @@ static int http_module_run(struct probeably *p, const char *ip, int port)
 	}
 	struct http_header *headers = read_headers(&sock);
 
-	// TODO: do shit here
+	// Write status code to database
+	char code_str[4];
+	snprintf(code_str, 4, "%d", status->code);
+	prb_write_data(p, "http", "get_root_response_code", ip, port, code_str, 0);
+
+	// Write headers to database
+	for (int i = 0; headers[i].name && headers[i].value; i++) {
+		char *name = headers[i].name;
+		char *value = headers[i].value;
+		int type_len = 16 + strlen(name);
+		char *type = malloc(type_len + 1);
+		snprintf(type, type_len + 1, "get_root_header_%s", name);
+		prb_write_data(p, "http", type, ip, port, value, 0);
+		free(type);
+	}
 
 	free_headers(headers);
 	free_status(status);
