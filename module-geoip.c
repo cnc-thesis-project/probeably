@@ -1,5 +1,6 @@
 #include "module.h"
 #include "module-geoip.h"
+#include "database.h"
 
 static const char *geoip_file = "./dataset/ip2asn-v4-u32.tsv";
 
@@ -114,7 +115,12 @@ static int geoip_module_run(struct probeably *p, struct prb_request *r, struct p
 		return 0;
 	}
 
+	char line[256];
+	sprintf(line, "%s\t%u\t%s", g->country, g->asn, g->as_desc);
+
 	PRB_DEBUG("geoip", "%s, Country: %s, AS: %u (%s)\n", r->ip, g->country, g->asn, g->as_desc);
+	prb_write_data(p, "geoip", "info", r->ip, r->port, line, strlen(line), r->timestamp);
+
 	return 0;
 }
 
