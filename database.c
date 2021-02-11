@@ -42,7 +42,7 @@ int prb_init_database(sqlite3 *db)
 int prb_write_data(	struct probeably *prb, const char *name, const char *type, const char *ip, int port,
 					const void *data, size_t data_size, int scan_time)
 {
-	PRB_DEBUG("database", "Writing %d bytes to database\n", data_size);
+	PRB_DEBUG("database", "Writing %zd bytes to database\n", data_size);
 	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?);";
 	char *err_msg = 0;
 	sqlite3_stmt *res = 0;
