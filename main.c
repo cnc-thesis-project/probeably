@@ -15,40 +15,6 @@
 
 pid_t *child = 0;
 int child_len = 8;
-struct probeably prb;
-
-#define NUM_MODULES 1
-struct prb_module *modules[NUM_MODULES] = {
-	&module_http,
-};
-
-static void init_modules()
-{
-	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->init(&prb);
-	}
-}
-
-static void cleanup_modules()
-{
-	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->cleanup(&prb);
-	}
-}
-
-static void run_modules(struct prb_request *r)
-{
-	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->run(&prb, r);
-	}
-
-	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
-}
-
-static void run_ip_modules(const char *ip, int timestamp)
-{
-	PRB_DEBUG("main", "ip scan: %s (%d)\n", ip, timestamp);
-}
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
@@ -78,18 +44,22 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 		free(values);
 		return;
-	} else if (port == 0) {
-		// ip related analysis stuff, e.g. geoip
-		run_ip_modules(ip, timestamp);
-		return;
 	}
-
-	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
 
 	struct prb_request req;
 	req.ip = ip;
 	req.port = port;
 	req.timestamp = timestamp;
+
+	if (port == 0) {
+		// ip related analysis stuff, e.g. geoip
+		run_ip_modules(&req);
+		return;
+	}
+
+	// port related analysis stuff
+
+	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
 	run_modules(&req);
 
 	free(values);
