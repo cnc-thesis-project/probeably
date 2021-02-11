@@ -1,6 +1,7 @@
 #include "module.h"
 #include "module-http.h"
 #include "module-ssh.h"
+#include "module-geoip.h"
 
 struct probeably prb;
 
@@ -13,6 +14,7 @@ struct prb_module *modules[] = {
 };
 
 struct prb_module *ip_modules[] = {
+	&module_geoip,
 };
 
 void init_modules()

@@ -155,6 +155,7 @@ int main(int argc, char **argv)
 
 	prb_socket_init();
 	init_modules();
+	init_ip_modules();
 
 	ev_signal signal_watcher;
 	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
@@ -204,6 +205,7 @@ int main(int argc, char **argv)
 	ev_loop(EV_DEFAULT_ 0);
 
 	cleanup_modules();
+	cleanup_ip_modules();
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
 	redisAsyncFree(c);
