@@ -176,7 +176,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	count = prb_socket_write(sock, http_buffer, strlen(http_buffer));
 	PRB_DEBUG("http", "Wrote %d bytes\n", count);
 
-	struct http_status *status = read_status(&sock);
+	struct http_status *status = read_status(sock);
 	if (!status) {
 		PRB_DEBUG("http", "Not a HTTP protocol\n");
 		goto ret_shutdown;
@@ -187,7 +187,6 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	// Write status code to database
 	char code_str[4];
 	snprintf(code_str, 4, "%d", status->code);
-	prb_write_data(p, "http", "get_root_response_code", ip, port, code_str, 0);
 
 	// Write headers to database
 	for (int i = 0; headers[i].name && headers[i].value; i++) {
@@ -196,7 +195,6 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 		int type_len = 16 + strlen(name);
 		char *type = malloc(type_len + 1);
 		snprintf(type, type_len + 1, "get_root_header_%s", name);
-		prb_write_data(p, "http", type, ip, port, value, 0);
 		free(type);
 	}
 

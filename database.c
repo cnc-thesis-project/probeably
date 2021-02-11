@@ -27,7 +27,7 @@ int prb_init_database(sqlite3 *db)
 	// scan_time: time the masscan got SYN-ACK from the port
 	// probe_time: time the module stored this data into database
 
-	char *query = "CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT, data TEXT, scan_time INT, probe_time INT);";
+	char *query = "CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT, data BLOB, scan_time INT, probe_time INT);";
 	char *err_msg = 0;
 
 	int rc = sqlite3_exec(db, query, 0, 0, &err_msg);
@@ -40,9 +40,9 @@ int prb_init_database(sqlite3 *db)
 }
 
 int prb_write_data(	struct probeably *prb, const char *name, const char *type, const char *ip, int port,
-					const char *data, int scan_time)
+					const void *data, size_t data_size, int scan_time)
 {
-	PRB_DEBUG("database", "Writing to database\n");
+	PRB_DEBUG("database", "Writing %d bytes to database\n", data_size);
 	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?);";
 	char *err_msg = 0;
 	sqlite3_stmt *res = 0;
@@ -57,7 +57,7 @@ int prb_write_data(	struct probeably *prb, const char *name, const char *type, c
 	sqlite3_bind_text(res, 2, type, -1, 0);
 	sqlite3_bind_text(res, 3, ip, -1, 0);
 	sqlite3_bind_int(res, 4, port);
-	sqlite3_bind_text(res, 5, data, -1, 0);
+	sqlite3_bind_blob(res, 5, data, data_size, 0);
 	sqlite3_bind_int(res, 6, scan_time);
 	sqlite3_bind_int(res, 7, time(0));
 
