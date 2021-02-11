@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include "probeably.h"
 #include "module-http.h"
+#include "module-ssh.h"
 #include "module.h"
 #include "socket.h"
 #include "database.h"
@@ -18,12 +19,13 @@ int child_len = 8;
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
+	PRB_DEBUG("main", "Running port callback\n");
+
 	redisReply *reply = r;
 	sqlite3 *db = privdata;
 
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
-	printf("port callback\n");
 
 	if (!reply || reply->elements < 2)
 		return;
@@ -46,6 +48,8 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
+	PRB_DEBUG("main", "probing: %s:%d (%d)\n", ip, port, timestamp);
+
 	struct prb_request req;
 	req.ip = ip;
 	req.port = port;
@@ -67,22 +71,20 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 static void connect_callback(const redisAsyncContext *c, int status)
 {
+	PRB_DEBUG("main", "Connecting (^ 3^)\n");
 	if (status != REDIS_OK) {
-		printf("error: %s\n", c->errstr);
+		fprintf(stderr, "error: %s\n", c->errstr);
 		return;
 	}
-
-	printf("connected (^ 3^)\n");
 }
 
 static void disconnect_callback(const redisAsyncContext *c, int status)
 {
+	PRB_DEBUG("main", "Disconnecting ( ˘ω˘)\n");
 	if (status != REDIS_OK) {
-		printf("error: %s\n", c->errstr);
+		fprintf(stderr, "error: %s\n", c->errstr);
 		return;
 	}
-
-	printf("disconnect ( ˘ω˘)\n");
 }
 
 static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
@@ -98,6 +100,7 @@ static void version()
 
 static void usage()
 {
+
 	printf(
 			"usage: probeably [options]\n"
 			"  -h, --help        Print usage.\n"
@@ -143,7 +146,6 @@ int main(int argc, char **argv)
 				break;
 
 			default:
-				fprintf(stderr, "Unrecognized option '%c'\n", c);
 				return EXIT_FAILURE;
 		}
 	}
@@ -159,11 +161,13 @@ int main(int argc, char **argv)
 	c = redisAsyncConnect(hostname, port);
 
 	if (c->err) {
-		printf("Connection error: %s\n", c->errstr);
+		fprintf(stderr, "Connection error: %s\n", c->errstr);
 		redisAsyncFree(c);
 
 		exit(1);
 	}
+
+	PRB_DEBUG("main", "Starting workers...\n");
 
 	child = malloc(sizeof(pid_t) * child_len);
 

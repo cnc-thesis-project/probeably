@@ -4,7 +4,7 @@ VERSION := $(shell git describe --always)
 INCLUDE := -I./hiredis/ -I./include
 CFLAGS := $(INCLUDE) -fsanitize=address -ggdb -D PRB_VERSION=\"$(VERSION)\"
 LDFLAGS := -lasan -lwolfssl -lm -lev -lsqlite3
-SOURCES := main.c module.c module-http.c socket.c database.c
+SOURCES := main.c module.c socket.c database.c module-http.c module-ssh.c
 
 all: $(PROGRAM)
 
