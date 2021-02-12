@@ -32,6 +32,9 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	char *values = strdup(reply->element[1]->str);
 
+	PRB_DEBUG("main", "Got from redis: %s\n", values);
+
+
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
 	char *protocol = strtok(0, ",");
