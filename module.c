@@ -2,6 +2,7 @@
 #include "module-http.h"
 #include "module-ssh.h"
 #include "module-geoip.h"
+#include "database.h"
 
 struct probeably prb;
 
@@ -58,6 +59,8 @@ void cleanup_ip_modules()
 
 void run_ip_modules(struct prb_request *r)
 {
+	prb_write_data(&prb, "port", "open", r->ip, r->port, 0, 0, r->timestamp);
+
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
 		ip_modules[i]->run(&prb, r, 0);
 	}
