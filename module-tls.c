@@ -53,11 +53,10 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 			dup2(pfd[1], 1);
 			dup2(pfd[1], 2);
 			char jarm_cmd[256];
-			snprintf(jarm_cmd, 512, "python ./jarm/jarm.py -s -p %d %s", r->port, r->ip);
+			snprintf(jarm_cmd, 256, "python ./jarm/jarm.py -s -p %d %s", r->port, r->ip);
 			system(jarm_cmd);
 			exit(EXIT_SUCCESS);
 		default:
-			sleep(3);
 			close(pfd[1]);
 			int size = read(pfd[0], jarm_hash, 62);
 			if (size != 62) {
