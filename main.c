@@ -8,8 +8,6 @@
 #include <adapters/libev.h>
 #include <getopt.h>
 #include "probeably.h"
-#include "module-http.h"
-#include "module-ssh.h"
 #include "module.h"
 #include "socket.h"
 #include "database.h"

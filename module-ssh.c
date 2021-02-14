@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <wolfssl/wolfcrypt/sha.h>
 #include "module.h"
 #include "module-ssh.h"
 #include "socket.h"
@@ -49,6 +48,8 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 }
 
 struct prb_module module_ssh = {
+	.flags = PRB_MODULE_REQUIRES_RAW_SOCKET,
+	.name = "ssh",
 	.init = ssh_module_init,
 	.cleanup = ssh_module_cleanup,
 	.run = ssh_module_run,

@@ -2,6 +2,7 @@
 #include "module-http.h"
 #include "module-ssh.h"
 #include "module-geoip.h"
+#include "module-tls.h"
 #include "database.h"
 
 struct probeably prb;
@@ -12,6 +13,7 @@ struct probeably prb;
 struct prb_module *modules[] = {
 	&module_http,
 	&module_ssh,
+	&module_tls,
 };
 
 struct prb_module *ip_modules[] = {
@@ -37,7 +39,16 @@ void run_modules(struct prb_request *r)
 	struct prb_socket s = {0};
 	s.type = PRB_SOCKET_UNKNOWN;
 	for (int i = 0; i < NUM_MODULES; i++) {
-		modules[i]->run(&prb, r, &s);
+		struct prb_module *mod = modules[i];
+		if (s.type != PRB_SOCKET_UNKNOWN) {
+			if ((s.type == PRB_SOCKET_RAW && mod->flags & PRB_MODULE_REQUIRES_SSL_SOCKET)
+			||  (s.type == PRB_SOCKET_SSL && mod->flags & PRB_MODULE_REQUIRES_RAW_SOCKET)) {
+				PRB_DEBUG("module", "Module '%s' cannot operate on a socket of this type\n", mod->name);
+				// Socket is of the wrong type for this module.
+				continue;
+			}
+		}
+			mod->run(&prb, r, &s);
 	}
 
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
