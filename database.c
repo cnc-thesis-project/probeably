@@ -1,5 +1,6 @@
 #include <sqlite3.h>
 #include "probeably.h"
+#include "module.h"
 #include "time.h"
 
 sqlite3 *prb_open_database(const char *path)
@@ -39,8 +40,8 @@ int prb_init_database(sqlite3 *db)
 	return 0;
 }
 
-int prb_write_data(	struct probeably *prb, const char *name, const char *type, const char *ip, int port,
-					const void *data, size_t data_size, int scan_time)
+int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *name, const char *type,
+					const void *data, size_t data_size)
 {
 	PRB_DEBUG("database", "Writing %zd bytes to database\n", data_size);
 	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?);";
@@ -55,10 +56,10 @@ int prb_write_data(	struct probeably *prb, const char *name, const char *type, c
 
 	sqlite3_bind_text(res, 1, name, -1, 0);
 	sqlite3_bind_text(res, 2, type, -1, 0);
-	sqlite3_bind_text(res, 3, ip, -1, 0);
-	sqlite3_bind_int(res, 4, port);
+	sqlite3_bind_text(res, 3, req->ip, -1, 0);
+	sqlite3_bind_int(res, 4, req->port);
 	sqlite3_bind_blob(res, 5, data, data_size, 0);
-	sqlite3_bind_int(res, 6, scan_time);
+	sqlite3_bind_int(res, 6, req->timestamp);
 	sqlite3_bind_int(res, 7, time(0));
 
 	rc = sqlite3_step(res);
@@ -69,7 +70,7 @@ int prb_write_data(	struct probeably *prb, const char *name, const char *type, c
 
 	sqlite3_finalize(res);
 
-	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d\n", name, type, ip, port);
+	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d\n", name, type, req->ip, req->port);
 
 	return 0;
 

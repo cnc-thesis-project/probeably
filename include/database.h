@@ -5,7 +5,7 @@
 
 sqlite3 *prb_open_database(const char *path);
 int prb_init_database(sqlite3 *db);
-int prb_write_data(	struct probeably *prb, const char *name, const char *type, const char *ip, int port,
-					const void *data, size_t data_size, int scan_time);
+int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *name, const char *type,
+					const void *data, size_t data_size);
 
 #endif

@@ -59,7 +59,7 @@ void cleanup_ip_modules()
 
 void run_ip_modules(struct prb_request *r)
 {
-	prb_write_data(&prb, "port", "open", r->ip, r->port, 0, 0, r->timestamp);
+	prb_write_data(&prb, r, "port", "open", 0, 0);
 
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
 		ip_modules[i]->run(&prb, r, 0);

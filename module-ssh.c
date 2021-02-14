@@ -44,7 +44,7 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	bytes_read += prb_socket_read(s, &ssh_buffer[read_len], SSH_BUFFER_SIZE - read_len);
 
 	prb_socket_shutdown(s);
-	prb_write_data(p, "ssh", "response", r->ip, r->port, ssh_buffer, bytes_read, r->timestamp);
+	prb_write_data(p, r, "ssh", "response", ssh_buffer, bytes_read);
 	return 0;
 }
 
