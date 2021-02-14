@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <wolfssl/ssl.h>
 #include "module.h"
 #include "module-tls.h"
 #include "socket.h"
@@ -22,14 +23,17 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	int bytes_read = 0;
 
 	PRB_DEBUG("tls", "Grabbing certificate\n");
-	/*if (prb_socket_connect(s, r->ip, r->port) < 0) {
+	if (prb_socket_connect(s, r->ip, r->port) < 0) {
 		return -1;
 	}
+	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
 
-	prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);*/
+	if (!cert) {
+		PRB_DEBUG("tls", "Failed grabbing certificate\n");
+	}
+
 
 	PRB_DEBUG("tls", "Running JARM\n");
-
 	char jarm_cmd[512];
 	// TODO: do not use relative path
 	snprintf(jarm_cmd, 512, "python ./jarm/jarm.py -p %d %s", r->port, r->ip);
@@ -68,6 +72,8 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	}
 
 	PRB_DEBUG("tls", "JARM hash for %s:%d: %s\n", r->ip, r->port, jarm_hash);
+
+	// TODO: write hash to db
 
 	return 0;
 }
