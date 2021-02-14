@@ -33,7 +33,42 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	char jarm_cmd[512];
 	// TODO: do not use relative path
 	snprintf(jarm_cmd, 512, "python ./jarm/jarm.py -p %d %s", r->port, r->ip);
-	system(jarm_cmd);
+
+	int pfd[2];
+	if (pipe(pfd)) {
+		PRB_DEBUG("tls", "Failed creating pipe\n");
+		return -1;
+	}
+
+	char jarm_hash[64] = {0};
+	int jarm_pid = fork();
+	switch (jarm_pid) {
+		case -1:
+			close(pfd[0]);
+			close(pfd[1]);
+			PRB_DEBUG("tls", "Failed fork\n");
+			return -1;
+		case 0:
+			close(pfd[0]);
+			dup2(pfd[1], 1);
+			dup2(pfd[1], 2);
+			char jarm_cmd[256];
+			snprintf(jarm_cmd, 512, "python ./jarm/jarm.py -s -p %d %s", r->port, r->ip);
+			system(jarm_cmd);
+			exit(EXIT_SUCCESS);
+		default:
+			sleep(3);
+			close(pfd[1]);
+			int size = read(pfd[0], jarm_hash, 62);
+			if (size != 62) {
+				PRB_DEBUG("tls", "Failed getting JARM hash: %s\n", jarm_hash);
+				return -1;
+			}
+			jarm_hash[62] = '\0';
+			close(pfd[0]);
+	}
+
+	PRB_DEBUG("tls", "JARM hash for %s:%d: %s\n", r->ip, r->port, jarm_hash);
 
 	return 0;
 }
