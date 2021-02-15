@@ -83,7 +83,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	PRB_DEBUG("tls", "JARM hash for %s:%d: %s\n", r->ip, r->port, jarm_hash);
 
-	// TODO: write hash to db
+	prb_write_data(p, "tls", "jarm", r->ip, r->port, jarm_hash, 63, r->timestamp);
 
 	return 0;
 }
