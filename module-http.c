@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <wolfssl/wolfcrypt/sha.h>
 #include "module.h"
 #include "module-http.h"
 #include "socket.h"
@@ -205,6 +204,7 @@ ret_shutdown:
 }
 
 struct prb_module module_http = {
+	.name = "http",
 	.init = http_module_init,
 	.cleanup = http_module_cleanup,
 	.run = http_module_run,

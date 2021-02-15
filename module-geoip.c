@@ -125,6 +125,7 @@ static int geoip_module_run(struct probeably *p, struct prb_request *r, struct p
 }
 
 struct prb_module module_geoip = {
+	.name = "geoip",
 	.init = geoip_module_init,
 	.cleanup = geoip_module_cleanup,
 	.run = geoip_module_run,

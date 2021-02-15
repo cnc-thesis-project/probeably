@@ -4,6 +4,7 @@
 #include "socket.h"
 
 #define PRB_MODULE_REQUIRES_RAW_SOCKET (1 << 0)
+#define PRB_MODULE_REQUIRES_SSL_SOCKET (1 << 1)
 
 struct prb_request {
 	char *ip;
