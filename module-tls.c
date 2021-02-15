@@ -29,9 +29,19 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
 
 	if (!cert) {
-		PRB_DEBUG("tls", "Failed grabbing certificate\n");
+		PRB_DEBUG("tls", "Failed grabbing peer certificate\n");
+		return -1;
 	}
 
+	int der_len = 0;
+	unsigned char *der_cert = wolfSSL_X509_get_der(cert, &der_len);
+
+	prb_write_data(p, "tls", "certificate", r->ip, r->port, der_cert, der_len, r->timestamp);
+
+	if (!der_cert) {
+		PRB_DEBUG("tls", "Failed getting peer certificate in DER format\n");
+		return -1;
+	}
 
 	PRB_DEBUG("tls", "Running JARM\n");
 	char jarm_cmd[512];
