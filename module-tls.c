@@ -34,9 +34,9 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	}
 
 	int der_len = 0;
-	unsigned char *der_cert = wolfSSL_X509_get_der(cert, &der_len);
+	const unsigned char *der_cert = wolfSSL_X509_get_der(cert, &der_len);
 
-	prb_write_data(p, r, "tls", "certificate", der_cert, der_len);
+	prb_write_data(p, r, "tls", "certificate", der_cert, der_len, PRB_DB_SUCCESS);
 
 	if (!der_cert) {
 		PRB_DEBUG("tls", "Failed getting peer certificate in DER format\n");
@@ -80,7 +80,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	PRB_DEBUG("tls", "JARM hash for %s:%d: %s\n", r->ip, r->port, jarm_hash);
 
-	prb_write_data(p, r, "tls", "jarm", jarm_hash, 63);
+	prb_write_data(p, r, "tls", "jarm", jarm_hash, 63, PRB_DB_SUCCESS);
 
 	return 0;
 }
