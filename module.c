@@ -70,7 +70,7 @@ void cleanup_ip_modules()
 
 void run_ip_modules(struct prb_request *r)
 {
-	prb_write_data(&prb, r, "port", "open", 0, 0);
+	prb_write_data(&prb, r, "port", "open", 0, 0, PRB_DB_SUCCESS);
 
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
 		ip_modules[i]->run(&prb, r, 0);

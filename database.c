@@ -27,8 +27,10 @@ int prb_init_database(sqlite3 *db)
 	// data: data (o.O)
 	// scan_time: time the masscan got SYN-ACK from the port
 	// probe_time: time the module stored this data into database
+	// flags: each bits representing a flag (see database.h for details)
 
-	char *query = "CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT, data BLOB, scan_time INT, probe_time INT);";
+	char *query =	"CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT"
+					", data BLOB, scan_time INT, probe_time INT, flags INT);";
 	char *err_msg = 0;
 
 	int rc = sqlite3_exec(db, query, 0, 0, &err_msg);
@@ -41,10 +43,10 @@ int prb_init_database(sqlite3 *db)
 }
 
 int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *name, const char *type,
-					const void *data, size_t data_size)
+					const void *data, size_t data_size, size_t flags)
 {
 	PRB_DEBUG("database", "Writing %zd bytes to database\n", data_size);
-	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?);";
+	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
 	char *err_msg = 0;
 	sqlite3_stmt *res = 0;
 
@@ -61,6 +63,7 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 	sqlite3_bind_blob(res, 5, data, data_size, 0);
 	sqlite3_bind_int(res, 6, req->timestamp);
 	sqlite3_bind_int(res, 7, time(0));
+	sqlite3_bind_int(res, 8, flags);
 
 	rc = sqlite3_step(res);
 	if (rc != SQLITE_DONE) {
@@ -70,7 +73,8 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 
 	sqlite3_finalize(res);
 
-	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d\n", name, type, req->ip, req->port);
+	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d, flags=%zx\n",
+				name, type, req->ip, req->port, flags);
 
 	return 0;
 
