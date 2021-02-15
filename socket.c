@@ -31,7 +31,7 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 	s->sock = socket(AF_INET, SOCK_STREAM, 0);
 
 	struct timeval timeout = {
-		.tv_sec = 3,
+		.tv_sec = TIMEOUT,
 		.tv_usec = 0,
 	};
 
