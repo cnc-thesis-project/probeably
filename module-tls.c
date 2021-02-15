@@ -44,9 +44,6 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	}
 
 	PRB_DEBUG("tls", "Running JARM\n");
-	char jarm_cmd[512];
-	// TODO: do not use relative path
-	snprintf(jarm_cmd, 512, "python ./jarm/jarm.py -p %d %s", r->port, r->ip);
 
 	int pfd[2];
 	if (pipe(pfd)) {
