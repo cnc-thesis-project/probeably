@@ -48,14 +48,14 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 		PRB_DEBUG("http", "Not a HTTP protocol\n");
 
 		// TODO: add a flag that can differentiate normal reponse from this fail response
-		prb_write_data(p, "http", type, ip, port, http_buffer, total, timestamp);
+		prb_write_data(p, r, "http", type, http_buffer, total);
 
 		free(http_buffer);
 		prb_socket_shutdown(sock);
 		return -1;
 	}
 
-	prb_write_data(p, "http", type, ip, port, http_buffer, total, timestamp);
+	prb_write_data(p, r, "http", type, http_buffer, total);
 
 	free(http_buffer);
 	prb_socket_shutdown(sock);
