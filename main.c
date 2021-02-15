@@ -12,6 +12,8 @@
 #include "socket.h"
 #include "database.h"
 
+int WORKER_ID = 0;
+
 pid_t *child = 0;
 int child_len = 8;
 
@@ -116,6 +118,8 @@ int main(int argc, char **argv)
 	const char *hostname = "127.0.0.1";
 	int port = 6379;
 
+	WORKER_ID = getpid();
+
 	while (1) {
 		static struct option long_opts[] = {
 			{"help", no_argument, 0, 'h'},
@@ -180,6 +184,8 @@ int main(int argc, char **argv)
 			break;
 		child[i] = pid;
 	}
+
+	WORKER_ID = getpid();
 
 	// sqlite database has to be opened after fork or it may corrupt the file
 	prb.db = prb_open_database("probeably.db");

@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <sqlite3.h>
 
-#define PRB_DEBUG(LABEL, ARGS...) printf("[%s] ", LABEL); printf(ARGS);
+extern int WORKER_ID;
+
+#define PRB_DEBUG(LABEL, ARGS...) printf("[%d-%s] ", WORKER_ID, LABEL); printf(ARGS);
 
 struct probeably {
 	sqlite3 *db;
