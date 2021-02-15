@@ -29,13 +29,30 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 	int err;
 	PRB_DEBUG("socket", "Connecting raw socket\n");
 	s->sock = socket(AF_INET, SOCK_STREAM, 0);
-	fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) | O_NONBLOCK);
+
+	struct timeval timeout = {
+		.tv_sec = 3,
+		.tv_usec = 0,
+	};
+
+	if (setsockopt (s->sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		PRB_DEBUG("socket", "Failed setting receive timeout\n");
+		perror("timeout");
+		return -1;
+	}
+
+    if (setsockopt (s->sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		PRB_DEBUG("socket", "Failed setting send timeout\n");
+		perror("timeout");
+		return -1;
+	}
+
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	inet_pton(AF_INET, ip, &addr.sin_addr);
 
-	while (( err = connect(s->sock, (struct sockaddr *) &addr, sizeof(addr))) & EINPROGRESS & EALREADY & EAGAIN);
+	err = connect(s->sock, (struct sockaddr *) &addr, sizeof(addr));
 	if (err < 0) {
 		perror("connect");
 		return -1;
@@ -68,19 +85,13 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 			exit(EXIT_FAILURE);
 		}
 
-		wolfSSL_set_using_nonblock(s->ssl, 1);
 		wolfSSL_set_timeout(s->ssl, TIMEOUT);
 
 		wolfSSL_set_fd(s->ssl, s->sock);
 
 		struct timeval start_time, end_time;
 		gettimeofday(&start_time, NULL);
-		while ((err = wolfSSL_connect(s->ssl)) & SSL_ERROR_WANT_READ & SSL_ERROR_WANT_WRITE) {
-			gettimeofday(&end_time, NULL);
-			if ((end_time.tv_sec - start_time.tv_sec) > TIMEOUT) {
-				break;
-			}
-		}
+		err = wolfSSL_connect(s->ssl);
 		if (err != SSL_SUCCESS) {
 			PRB_DEBUG("socket", "SSL handshake failed\n");
 			printf("failed connecting to SSL server: %d: %s\n", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
@@ -90,16 +101,12 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
 			}
-			fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) & ~O_NONBLOCK);
 			s->type = PRB_SOCKET_RAW;
 			return 0;
 		}
 		s->type = PRB_SOCKET_SSL;
 		PRB_DEBUG("socket", "SSL handshake was successful\n");
-		wolfSSL_set_using_nonblock(s->ssl, 0);
 	}
-
-	fcntl(s->sock, F_SETFL, fcntl(s->sock, F_GETFL, 0) & ~O_NONBLOCK);
 
 	PRB_DEBUG("socket", "Connection was successful\n");
 	return 0;
