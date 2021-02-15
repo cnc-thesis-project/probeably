@@ -5,6 +5,7 @@
 
 #define PRB_MODULE_REQUIRES_RAW_SOCKET (1 << 0)
 #define PRB_MODULE_REQUIRES_SSL_SOCKET (1 << 1)
+#define PRB_MODULE_IS_APP_LAYER        (1 << 2)
 
 struct prb_request {
 	char *ip;

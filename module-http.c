@@ -201,9 +201,11 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	free_status(status);
 ret_shutdown:
 	prb_socket_shutdown(sock);
+	return 0;
 }
 
 struct prb_module module_http = {
+	.flags = PRB_MODULE_IS_APP_LAYER,
 	.name = "http",
 	.init = http_module_init,
 	.cleanup = http_module_cleanup,

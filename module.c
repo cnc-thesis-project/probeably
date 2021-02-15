@@ -38,8 +38,17 @@ void run_modules(struct prb_request *r)
 {
 	struct prb_socket s = {0};
 	s.type = PRB_SOCKET_UNKNOWN;
+	int app_layer_found = 0;
+
 	for (int i = 0; i < NUM_MODULES; i++) {
 		struct prb_module *mod = modules[i];
+
+		// We have already found the application layer on this port.
+		if (app_layer_found && mod->flags & PRB_MODULE_IS_APP_LAYER) {
+			PRB_DEBUG("module", "Application layer found. Skipping module %s\n", mod->name);
+			continue;
+		}
+
 		if (s.type != PRB_SOCKET_UNKNOWN) {
 			if ((s.type == PRB_SOCKET_RAW && mod->flags & PRB_MODULE_REQUIRES_SSL_SOCKET)
 			||  (s.type == PRB_SOCKET_SSL && mod->flags & PRB_MODULE_REQUIRES_RAW_SOCKET)) {
@@ -48,7 +57,14 @@ void run_modules(struct prb_request *r)
 				continue;
 			}
 		}
-			mod->run(&prb, r, &s);
+
+		int res = mod->run(&prb, r, &s);
+
+		// This module found the application layer.
+		if (!res && mod->flags & PRB_MODULE_IS_APP_LAYER) {
+			PRB_DEBUG("module", "Application layer found in module %s\n", mod->name);
+			app_layer_found = 1;
+		}
 	}
 
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
