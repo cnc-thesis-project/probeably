@@ -76,18 +76,29 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 
 	// head root
 	http_send_request(p, r, sock, "HEAD / HTTP/1.1\r\nHost: www\r\n\r\n", "head_root");
+
 	// get non existing file
 	http_send_request(p, r, sock, "GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nHost: www\r\n\r\n", "not_exist");
+
 	// get root with invalid http version
 	http_send_request(p, r, sock, "GET / HTTP/1.999\r\nHost: www\r\n\r\n", "invalid_version");
+
 	// get root with invalid protocol
 	http_send_request(p, r, sock, "GET / PTTH/1.1\r\nHost: www\r\n\r\n", "invalid_protocol");
+
 	// get very long path (1000 characters)
 	char request_buffer[2048];
 	char aaaaa[1001];
 	memset(aaaaa, 'a', sizeof(aaaaa)-1);
 	sprintf(request_buffer, "GET /%s HTTP/1.1\r\nHost: www\r\n\r\n", aaaaa);
 	http_send_request(p, r, sock, request_buffer, "long_path");
+
+	// get favicon
+	http_send_request(p, r, sock, "GET /favicon.ico HTTP/1.1\r\nHost: www\r\n\r\n", "get_favicon");
+
+	// get robots.txt
+	http_send_request(p, r, sock, "GET /robots.txt HTTP/1.1\r\nHost: www\r\n\r\n", "get_robots");
+
 	// delete root
 	http_send_request(p, r, sock, "DELETE / HTTP/1.1\r\nHost: www\r\n\r\n", "delete_root");
 
