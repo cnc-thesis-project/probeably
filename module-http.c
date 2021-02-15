@@ -157,7 +157,7 @@ static void http_module_cleanup(struct probeably *p)
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
-
+	int ret = 0;
 	char *ip = r->ip;
 	int port = r->port;
 	int timestamp = r->timestamp;
@@ -178,8 +178,8 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	struct http_status *status = read_status(sock);
 	if (!status) {
 		PRB_DEBUG("http", "Not a HTTP protocol\n");
+		ret = -1;
 		goto ret_shutdown;
-		return -1;
 	}
 	struct http_header *headers = read_headers(sock);
 
@@ -201,7 +201,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	free_status(status);
 ret_shutdown:
 	prb_socket_shutdown(sock);
-	return 0;
+	return ret;
 }
 
 struct prb_module module_http = {
