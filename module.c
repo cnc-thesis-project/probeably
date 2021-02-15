@@ -11,9 +11,9 @@ struct probeably prb;
 #define NUM_IP_MODULES (sizeof(ip_modules) / sizeof(*ip_modules))
 
 struct prb_module *modules[] = {
+	&module_tls,
 	&module_http,
 	&module_ssh,
-	&module_tls,
 };
 
 struct prb_module *ip_modules[] = {
