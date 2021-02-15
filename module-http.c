@@ -19,7 +19,7 @@ static void http_module_cleanup(struct probeably *p)
 }
 
 static int http_send_request(	struct probeably *p, struct prb_request *r, struct prb_socket *sock,
-								const char *request, const char *type)
+								const char *request, const char *type, int headers_only)
 {
 	char *ip = r->ip;
 	int port = r->port;
@@ -32,30 +32,63 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	PRB_DEBUG("http", "Sending request '%s'\n", request);
 	prb_socket_write(sock, request, strlen(request));
 
-	char *http_buffer = malloc(HTTP_BUFFER_SIZE);
+	char *http_buffer = calloc(1, HTTP_BUFFER_SIZE);
 
-	int total = 0;
-	while (total < HTTP_BUFFER_SIZE - 1) {
+	size_t total = 0;
+	size_t content_length = -1;
+
+	size_t content_offset = -1;
+	while (total < HTTP_BUFFER_SIZE - 1 && (content_offset == -1 || total - content_offset < content_length)) {
 		int len = prb_socket_read(sock, http_buffer + total, HTTP_BUFFER_SIZE - 1 - total);
 		if (len <= 0)
 			break;
 
+		if (content_length == -1) {
+			// check for ontent-length header
+			char *length_line = strstr(http_buffer, "Content-Length:");
+			if (length_line && strstr(length_line, "\r\n")) {
+				char *line_end = strstr(length_line, "\r\n");
+
+				// set null character temporarily to make atoi stop at the end of line
+				*line_end = 0;
+				length_line += strlen("Content-Length:");
+				content_length = atoi(length_line);
+				// recover \r
+				*line_end = '\r';
+
+				PRB_DEBUG("http", "Content-Length: %zd\n", content_length);
+			}
+		}
+		if (content_offset == -1) {
+			// check where content begins
+			char *content = strstr(http_buffer, "\r\n\r\n");
+			if (content) {
+				content += strlen("\r\n\r\n");
+				content_offset = content - http_buffer;
+
+				// break if we are only interested in headers
+				if (headers_only)
+					break;
+			}
+		}
 		total += len;
+		PRB_DEBUG("http", "Content-Length: %zd, %zd, %zd, %zd\n", content_length, content_offset, total, total - content_offset);
 	}
 
-	http_buffer[total] = 0;
+	int result = 0;
 	if (strncmp("HTTP/", http_buffer, 5)) {
 		PRB_DEBUG("http", "Not a HTTP protocol\n");
 
-		// TODO: add a flag that can differentiate normal reponse from this fail response
-		prb_write_data(p, r, "http", type, http_buffer, total);
+		result = -1;
+		prb_write_data(p, r, "http", type, http_buffer, total, (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
 
 		free(http_buffer);
 		prb_socket_shutdown(sock);
 		return -1;
 	}
 
-	prb_write_data(p, r, "http", type, http_buffer, total);
+	prb_write_data(p, r, "http", type, http_buffer, total,
+			(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
 
 	free(http_buffer);
 	prb_socket_shutdown(sock);
@@ -68,39 +101,41 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	PRB_DEBUG("http", "running module on %s:%d\n", r->ip, r->port);
 
 	// get root, if it fails it's not a HTTP protocol
-	if (http_send_request(p, r, sock, "GET / HTTP/1.1\r\nHost: www\r\n\r\n", "get_root") == -1)
+	if (http_send_request(p, r, sock, "GET / HTTP/1.1\r\nHost: www\r\n\r\n", "get_root", 0) == -1)
 		return -1;
 
 	// the rest of the requests don't return if it fails
 	// because we already know that it worked for GET request
 
 	// head root
-	http_send_request(p, r, sock, "HEAD / HTTP/1.1\r\nHost: www\r\n\r\n", "head_root");
+	http_send_request(p, r, sock, "HEAD / HTTP/1.1\r\nHost: www\r\n\r\n", "head_root", 1);
 
 	// get non existing file
-	http_send_request(p, r, sock, "GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nHost: www\r\n\r\n", "not_exist");
+	http_send_request(p, r, sock, "GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nHost: www\r\n\r\n", "not_exist", 0);
 
 	// get root with invalid http version
-	http_send_request(p, r, sock, "GET / HTTP/1.999\r\nHost: www\r\n\r\n", "invalid_version");
+	http_send_request(p, r, sock, "GET / HTTP/1.999\r\nHost: www\r\n\r\n", "invalid_version", 0);
 
 	// get root with invalid protocol
-	http_send_request(p, r, sock, "GET / PTTH/1.1\r\nHost: www\r\n\r\n", "invalid_protocol");
+	http_send_request(p, r, sock, "GET / PTTH/1.1\r\nHost: www\r\n\r\n", "invalid_protocol", 0);
 
 	// get very long path (1000 characters)
 	char request_buffer[2048];
 	char aaaaa[1001];
 	memset(aaaaa, 'a', sizeof(aaaaa)-1);
+	aaaaa[sizeof(aaaaa)-1] = 0;
+
 	sprintf(request_buffer, "GET /%s HTTP/1.1\r\nHost: www\r\n\r\n", aaaaa);
-	http_send_request(p, r, sock, request_buffer, "long_path");
+	http_send_request(p, r, sock, request_buffer, "long_path", 0);
 
 	// get favicon
-	http_send_request(p, r, sock, "GET /favicon.ico HTTP/1.1\r\nHost: www\r\n\r\n", "get_favicon");
+	http_send_request(p, r, sock, "GET /favicon.ico HTTP/1.1\r\nHost: www\r\n\r\n", "get_favicon", 0);
 
 	// get robots.txt
-	http_send_request(p, r, sock, "GET /robots.txt HTTP/1.1\r\nHost: www\r\n\r\n", "get_robots");
+	http_send_request(p, r, sock, "GET /robots.txt HTTP/1.1\r\nHost: www\r\n\r\n", "get_robots", 0);
 
 	// delete root
-	http_send_request(p, r, sock, "DELETE / HTTP/1.1\r\nHost: www\r\n\r\n", "delete_root");
+	http_send_request(p, r, sock, "DELETE / HTTP/1.1\r\nHost: www\r\n\r\n", "delete_root", 0);
 
 	return 0;
 }
