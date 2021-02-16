@@ -24,7 +24,6 @@ static void ssh_module_cleanup(struct probeably *p)
 static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
 	PRB_DEBUG("ssh", "Running SSH prober\n");
-	int bytes_read = 0;
 	int read_len = 0;
 
 	if (prb_socket_connect(s, r->ip, r->port) < 0) {
@@ -32,18 +31,19 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	}
 
 	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
-	bytes_read = read_len;
 
 	if (strncmp(ssh_buffer, "SSH", 3)) {
 		PRB_DEBUG("ssh", "Not an SSH protocol\n");
 		return -1;
 	}
 
+	prb_write_data(p, r, "ssh", "string", ssh_buffer, read_len, PRB_DB_SUCCESS);
+
 	prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
-	bytes_read += prb_socket_read(s, &ssh_buffer[read_len], SSH_BUFFER_SIZE - read_len);
+	read_len = prb_socket_read(s, &ssh_buffer[read_len], SSH_BUFFER_SIZE);
 
 	prb_socket_shutdown(s);
-	prb_write_data(p, r, "ssh", "response", ssh_buffer, bytes_read, PRB_DB_SUCCESS);
+	prb_write_data(p, r, "ssh", "ciphers", ssh_buffer, read_len, PRB_DB_SUCCESS);
 	return 0;
 }
 
