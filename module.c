@@ -39,6 +39,7 @@ void run_modules(struct prb_request *r)
 	struct prb_socket s = {0};
 	s.type = PRB_SOCKET_UNKNOWN;
 	int app_layer_found = 0;
+	char *mod_name = 0;
 
 	for (int i = 0; i < NUM_MODULES; i++) {
 		struct prb_module *mod = modules[i];
@@ -64,8 +65,14 @@ void run_modules(struct prb_request *r)
 		if (!res && mod->flags & PRB_MODULE_IS_APP_LAYER) {
 			PRB_DEBUG("module", "Application layer found in module %s\n", mod->name);
 			app_layer_found = 1;
+			mod_name = mod->name;
 		}
 	}
+
+	if (!mod_name)
+		mod_name = "unknown";
+
+	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
 
 	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)\n", r->ip, r->port);
 }
@@ -86,8 +93,6 @@ void cleanup_ip_modules()
 
 void run_ip_modules(struct prb_request *r)
 {
-	prb_write_data(&prb, r, "port", "open", 0, 0, PRB_DB_SUCCESS);
-
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
 		ip_modules[i]->run(&prb, r, 0);
 	}
