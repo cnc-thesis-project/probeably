@@ -72,7 +72,6 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 			}
 		}
 		total += len;
-		PRB_DEBUG("http", "Content-Length: %zd, %zd, %zd, %zd\n", content_length, content_offset, total, total - content_offset);
 	}
 
 	int result = 0;
