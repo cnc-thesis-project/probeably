@@ -40,7 +40,7 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	prb_write_data(p, r, "ssh", "string", ssh_buffer, read_len, PRB_DB_SUCCESS);
 
 	prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
-	read_len = prb_socket_read(s, &ssh_buffer[read_len], SSH_BUFFER_SIZE);
+	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 
 	prb_socket_shutdown(s);
 	prb_write_data(p, r, "ssh", "ciphers", ssh_buffer, read_len, PRB_DB_SUCCESS);
