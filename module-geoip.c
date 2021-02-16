@@ -12,8 +12,8 @@ struct geoip_table
 	char *as_desc;
 };
 
-static struct geoip_table *geoip_map;
-static int geoip_len = 512 * 1024;
+static struct geoip_table *geoip_map = 0;
+static int geoip_len = 0;
 
 static uint32_t ip_to_int(const char *ip)
 {
@@ -57,6 +57,8 @@ static void geoip_module_init(struct probeably *p)
 		return;
 	}
 
+	// the "buffer" size, it's temporary and will be shrinked when the whole tsv has been parsed
+	geoip_len = 512*1024;
 	geoip_map = malloc(sizeof(struct geoip_table) * geoip_len);
 
 	char line[256];
