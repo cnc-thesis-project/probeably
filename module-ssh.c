@@ -11,6 +11,13 @@ static char ssh_buffer[SSH_BUFFER_SIZE];
 
 #define SSH_BANNER "SSH-2.0-OpenSSH_7.9 FreeBSD-20200214\r\n"
 
+static int ssh_module_check(const char *response, int len)
+{
+	if (strncmp(response, "SSH-", 4))
+		return -1;
+	return 0;
+}
+
 static void ssh_module_init(struct probeably *p)
 {
 
@@ -32,8 +39,8 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 
-	if (strncmp(ssh_buffer, "SSH", 3)) {
-		PRB_DEBUG("ssh", "Not an SSH protocol");
+	if (ssh_module_check(ssh_buffer, read_len)) {
+		PRB_DEBUG("ssh", "Not an SSH protocol\n");
 		return -1;
 	}
 
@@ -54,4 +61,5 @@ struct prb_module module_ssh = {
 	.init = ssh_module_init,
 	.cleanup = ssh_module_cleanup,
 	.run = ssh_module_run,
+	.check = ssh_module_check,
 };

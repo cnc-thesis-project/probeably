@@ -23,6 +23,7 @@ struct prb_module {
 	void (*init)(struct probeably *p);
 	void (*cleanup)(struct probeably *p);
 	int (*run)(struct probeably *p, struct prb_request *r, struct prb_socket *s);
+	int (*check)(const char *response, int len);
 };
 
 void init_modules();

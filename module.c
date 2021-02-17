@@ -34,12 +34,57 @@ void cleanup_modules()
 	}
 }
 
+static int test_probe(struct prb_request *r, struct prb_socket *s, char *response, int size)
+{
+	PRB_DEBUG("module", "Test probing port\n");
+
+	if (prb_socket_connect(s, r->ip, r->port) < 0)
+		return -1;
+
+	int len = 0;
+
+	// TODO: should read until it stops receiving to get as much info as possible
+	// this should be done for all reads in this function
+
+	// hope the server initiates the communication
+	len = prb_socket_read(s, response, size-1);
+	if (len <= 0) {
+		// probably the client needs to initiate communication
+		PRB_DEBUG("module", "Server not initiating communication, sending test request\n");
+
+		char *request = "GET / HTTP/1.1\r\nHost: www\r\n\r\n";
+		prb_socket_write(s, request, strlen(request));
+
+		len = prb_socket_read(s, response, size-1);
+	}
+
+	if (len <= 0) {
+		// no response at all, boring
+		PRB_DEBUG("module", "Got no response from server, cannot identify service\n");
+
+		prb_socket_shutdown(s);
+		return 0;
+	}
+
+	// got response, return
+
+	response[len] = 0;
+	PRB_DEBUG("module", "Got response:\n%s\n", response);
+
+	return len;
+}
+
 void run_modules(struct prb_request *r)
 {
 	struct prb_socket s = {0};
 	s.type = PRB_SOCKET_UNKNOWN;
 	int app_layer_found = 0;
 	char *mod_name = 0;
+
+	char response[1024];
+	int response_len = test_probe(r, &s, response, sizeof(response));
+	if (response_len < 0)
+		return;
 
 	for (int i = 0; i < NUM_MODULES; i++) {
 		struct prb_module *mod = modules[i];
@@ -59,6 +104,13 @@ void run_modules(struct prb_request *r)
 			}
 		}
 
+		// make sure response from test probing matches the module's protocol
+		// if response length is 0, desperately test all modules until it succeeds
+		if (response_len > 0 && mod->check(response, response_len) == -1) {
+			PRB_DEBUG("module", "Test probe response did not match with module '%s' protocol\n", mod->name);
+			continue;
+		}
+
 		int res = mod->run(&prb, r, &s);
 
 		// This module found the application layer.
@@ -69,8 +121,13 @@ void run_modules(struct prb_request *r)
 		}
 	}
 
-	if (!mod_name)
+	if (!mod_name) {
 		mod_name = "unknown";
+
+		// if it contains anything, save the test probe response
+		if (response_len > 0)
+			prb_write_data(&prb, r, mod_name, "response", response, response_len, PRB_DB_SUCCESS);
+	}
 
 	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
 
@@ -99,4 +156,3 @@ void run_ip_modules(struct prb_request *r)
 
 	PRB_DEBUG("main", "fake ip module go brrrrrrrrrrrrr (%s)", r->ip);
 }
-

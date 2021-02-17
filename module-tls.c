@@ -8,6 +8,12 @@
 #include "database.h"
 #include "probeably.h"
 
+static int tls_module_check(const char *response, int len)
+{
+	// whether the tls module should run or not is decided based on sock type
+	return 0;
+}
+
 static void tls_module_init(struct probeably *p)
 {
 
@@ -93,4 +99,5 @@ struct prb_module module_tls = {
 	.init = tls_module_init,
 	.cleanup = tls_module_cleanup,
 	.run = tls_module_run,
+	.check = tls_module_check,
 };

@@ -8,6 +8,13 @@
 
 #define HTTP_BUFFER_SIZE (16*1024)
 
+static int http_module_check(const char *response, int len)
+{
+	if (strncmp("HTTP/", response, 5))
+		return -1;
+	return 0;
+}
+
 static void http_module_init(struct probeably *p)
 {
 
@@ -75,8 +82,8 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	}
 
 	int result = 0;
-	if (strncmp("HTTP/", http_buffer, 5)) {
-		PRB_DEBUG("http", "Not a HTTP protocol");
+	if (http_module_check(http_buffer, total) == -1) {
+		PRB_DEBUG("http", "Not a HTTP protocol\n");
 		result = -1;
 	}
 
@@ -139,4 +146,5 @@ struct prb_module module_http = {
 	.init = http_module_init,
 	.cleanup = http_module_cleanup,
 	.run = http_module_run,
+	.check = http_module_check,
 };
