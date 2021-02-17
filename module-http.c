@@ -36,12 +36,13 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 	size_t total = 0;
 	size_t content_length = -1;
-
 	size_t content_offset = -1;
 	while (total < HTTP_BUFFER_SIZE - 1 && (content_offset == -1 || total - content_offset < content_length)) {
 		int len = prb_socket_read(sock, http_buffer + total, HTTP_BUFFER_SIZE - 1 - total);
 		if (len <= 0)
 			break;
+
+		total += len;
 
 		if (content_length == -1) {
 			// check for ontent-length header
@@ -71,19 +72,12 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 					break;
 			}
 		}
-		total += len;
 	}
 
 	int result = 0;
 	if (strncmp("HTTP/", http_buffer, 5)) {
 		PRB_DEBUG("http", "Not a HTTP protocol\n");
-
 		result = -1;
-		prb_write_data(p, r, "http", type, http_buffer, total, (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
-
-		free(http_buffer);
-		prb_socket_shutdown(sock);
-		return -1;
 	}
 
 	prb_write_data(p, r, "http", type, http_buffer, total,
@@ -92,7 +86,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	free(http_buffer);
 	prb_socket_shutdown(sock);
 
-	return 0;
+	return result;
 }
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
