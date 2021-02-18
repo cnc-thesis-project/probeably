@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <adapters/libev.h>
 #include <getopt.h>
+#include "config.h"
 #include "probeably.h"
 #include "module.h"
 #include "socket.h"
@@ -133,6 +134,7 @@ int main(int argc, char **argv)
 {
 	const char *hostname = "127.0.0.1";
 	int port = 6379;
+	char *config = "config.ini";
 
 	WORKER_ID = getpid();
 
@@ -140,6 +142,7 @@ int main(int argc, char **argv)
 		static struct option long_opts[] = {
 			{"help", no_argument, 0, 'h'},
 			{"version", no_argument, 0, 'v'},
+			{"config", required_argument, 0, 'c'},
 			{"redis-host", required_argument, 0, 'H'},
 			{"redis-port", required_argument, 0, 'p'},
 		};
@@ -165,11 +168,17 @@ int main(int argc, char **argv)
 			case 'p':
 				port = atoi(optarg);
 				break;
+			case 'c':
+				config = optarg;
+				break;
 
 			default:
 				return EXIT_FAILURE;
 		}
 	}
+
+	prb_load_config(config);
+	child_len = prb_config.num_workers;
 
 	redisAsyncContext *c;
 	redisReply *reply;

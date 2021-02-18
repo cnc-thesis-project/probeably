@@ -2,6 +2,7 @@
 #define _PROBEABLY_LOG_H
 
 #include <stdio.h>
+#include "probeably.h"
 
 #define print_hash_color(num) \
 { \

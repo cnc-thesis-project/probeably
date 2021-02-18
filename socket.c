@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include "probeably.h"
+#include "config.h"
 #include "log.h"
 #include "socket.h"
 
@@ -31,17 +32,25 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 	PRB_DEBUG("socket", "Connecting raw socket");
 	s->sock = socket(AF_INET, SOCK_STREAM, 0);
 
-	struct timeval timeout = {
-		.tv_sec = TIMEOUT,
+	int read_timeout = prb_config.read_timeout;
+	int write_timeout = prb_config.write_timeout;
+
+	struct timeval read_timeout_val = {
+		.tv_sec = read_timeout,
+		.tv_usec = 0,
+	};
+	
+	struct timeval write_timeout_val = {
+		.tv_sec = write_timeout,
 		.tv_usec = 0,
 	};
 
-	if (setsockopt (s->sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+	if (setsockopt (s->sock, SOL_SOCKET, SO_RCVTIMEO, &read_timeout_val, sizeof(read_timeout_val)) < 0) {
 		PRB_ERROR("socket", "Failed setting receive timeout: %s", strerror(errno));
 		return -1;
 	}
 
-    if (setsockopt (s->sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+    if (setsockopt (s->sock, SOL_SOCKET, SO_SNDTIMEO, &write_timeout_val, sizeof(write_timeout_val)) < 0) {
 		PRB_ERROR("socket", "Failed setting send timeout: %s", strerror(errno));
 		return -1;
 	}
