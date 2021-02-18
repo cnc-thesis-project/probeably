@@ -105,9 +105,14 @@ void run_modules(struct prb_request *r)
 		}
 
 		// make sure response from test probing matches the module's protocol
-		// if response length is 0, desperately test all modules until it succeeds
 		if (response_len > 0 && mod->check(response, response_len) == -1) {
 			PRB_DEBUG("module", "Test probe response did not match with module '%s' protocol\n", mod->name);
+			continue;
+		}
+
+		// if response length is 0, skip the module if it expects the server to initiate the communication
+		if (response_len == 0 && mod->flags & PRB_MODULE_SERVER_INITIATE) {
+			PRB_DEBUG("module", "Module '%s' expects the server to initiate the communication, skipping\n", mod->name);
 			continue;
 		}
 
