@@ -41,24 +41,34 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 	if (prb_socket_connect(s, r->ip, r->port) < 0)
 		return -1;
 
-	int len = 0;
-
-	// TODO: should read until it stops receiving to get as much info as possible
-	// this should be done for all reads in this function
-
 	// hope the server initiates the communication
-	len = prb_socket_read(s, response, size-1);
-	if (len <= 0) {
+	size_t total = 0;
+	while (total < size - 1) {
+		int len = prb_socket_read(s, response + total, size - 1 - total);
+		if (len <= 0)
+			break;
+
+		total += len;
+	}
+
+	if (total <= 0) {
 		// probably the client needs to initiate communication
 		PRB_DEBUG("module", "Server not initiating communication, sending test request\n");
 
 		char *request = "GET / HTTP/1.1\r\nHost: www\r\n\r\n";
 		prb_socket_write(s, request, strlen(request));
 
-		len = prb_socket_read(s, response, size-1);
+		size_t total = 0;
+		while (total < size - 1) {
+			int len = prb_socket_read(s, response + total, size - 1 - total);
+			if (len <= 0)
+				break;
+
+			total += len;
+		}
 	}
 
-	if (len <= 0) {
+	if (total <= 0) {
 		// no response at all, boring
 		PRB_DEBUG("module", "Got no response from server, cannot identify service\n");
 
@@ -68,10 +78,10 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 	// got response, return
 
-	response[len] = 0;
+	response[total] = 0;
 	PRB_DEBUG("module", "Got response:\n%s\n", response);
 
-	return len;
+	return total;
 }
 
 void run_modules(struct prb_request *r)
