@@ -36,7 +36,7 @@ void cleanup_modules()
 
 static int test_probe(struct prb_request *r, struct prb_socket *s, char *response, int size)
 {
-	PRB_DEBUG("module", "Test probing port\n");
+	PRB_DEBUG("module", "Test probing");
 
 	if (prb_socket_connect(s, r->ip, r->port) < 0)
 		return -1;

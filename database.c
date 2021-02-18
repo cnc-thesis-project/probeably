@@ -8,7 +8,7 @@ sqlite3 *prb_open_database(const char *path)
 	sqlite3 *db = 0;
 	int rc = sqlite3_open(path, &db);
 	if (rc != SQLITE_OK) {
-		PRB_DEBUG("database", "Failed to open sqlite3 database file:\n%s\n", sqlite3_errmsg(db));
+		PRB_ERROR("database", "Failed to open sqlite3 database file:\n%s", sqlite3_errmsg(db));
 		return 0;
 	}
 
@@ -35,7 +35,7 @@ int prb_init_database(sqlite3 *db)
 
 	int rc = sqlite3_exec(db, query, 0, 0, &err_msg);
 	if (rc != SQLITE_OK) {
-		PRB_DEBUG("database", "Failed to create database table:\n%s\n", err_msg);
+		PRB_ERROR("database", "Failed to create database table:\n%s", err_msg);
 		return -1;
 	}
 
@@ -45,14 +45,14 @@ int prb_init_database(sqlite3 *db)
 int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *name, const char *type,
 					const void *data, size_t data_size, size_t flags)
 {
-	PRB_DEBUG("database", "Writing %zd bytes to database\n", data_size);
+	PRB_DEBUG("database", "Writing %zd bytes to database", data_size);
 	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
 	char *err_msg = 0;
 	sqlite3_stmt *res = 0;
 
 	int rc = sqlite3_prepare_v2(prb->db, query, -1, &res, 0);
 	if (rc != SQLITE_OK) {
-		PRB_DEBUG("database", "Failed to compile statement:\n%s\n", sqlite3_errmsg(prb->db));
+		PRB_ERROR("database", "Failed to compile statement:\n%s", sqlite3_errmsg(prb->db));
 		return -1;
 	}
 
@@ -67,13 +67,13 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 
 	rc = sqlite3_step(res);
 	if (rc != SQLITE_DONE) {
-		PRB_DEBUG("database", "Failed to execute statement:\n%s\n", sqlite3_errmsg(prb->db));
+		PRB_ERROR("database", "Failed to execute statement:\n%s", sqlite3_errmsg(prb->db));
 		return -1;
 	}
 
 	sqlite3_finalize(res);
 
-	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d, flags=%zx\n",
+	PRB_DEBUG("database", "Data written: name=%s, type=%s, ip=%s, port=%d, flags=%zx",
 				name, type, req->ip, req->port, flags);
 
 	return 0;
