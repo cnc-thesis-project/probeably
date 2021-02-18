@@ -65,7 +65,9 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 {
 	PRB_DEBUG("socket", "Initializing connection to %s:%d", ip, port);
 
-	connect_raw(s, ip, port);
+	if (connect_raw(s, ip, port) == -1) {
+		return -1;
+	}
 
 	int err;
 
