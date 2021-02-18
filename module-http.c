@@ -32,11 +32,12 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	int port = r->port;
 	int timestamp = r->timestamp;
 
+	PRB_DEBUG("http", "Testing '%s'", type);
+
 	if (prb_socket_connect(sock, ip, port) < 0) {
 		return -1;
 	}
 
-	PRB_DEBUG("http", "Sending request '%s'", request);
 	prb_socket_write(sock, request, strlen(request));
 
 	char *http_buffer = calloc(1, HTTP_BUFFER_SIZE);
@@ -98,8 +99,6 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
-	PRB_DEBUG("http", "running module on %s:%d", r->ip, r->port);
-
 	// get root, if it fails it's not a HTTP protocol
 	if (http_send_request(p, r, sock, "GET / HTTP/1.1\r\nHost: www\r\n\r\n", "get_root", 0) == -1)
 		return -1;

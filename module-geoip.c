@@ -108,8 +108,6 @@ static void geoip_module_cleanup(struct probeably *p)
 
 static int geoip_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	PRB_DEBUG("geoip", "Running geoip module");
-
 	struct geoip_table *g = find_geoip(r->ip);
 
 	if (!g) {

@@ -126,7 +126,12 @@ void run_modules(struct prb_request *r)
 			continue;
 		}
 
+		PRB_DEBUG("module", "Running module '%s'", mod->name);
 		int res = mod->run(&prb, r, &s);
+		if (res == 0)
+			PRB_DEBUG("module", "Succeeded running module '%s'", mod->name);
+		else
+			PRB_DEBUG("module", "Module '%s' returned with error %d", mod->name, res);
 
 		// This module found the application layer.
 		if (!res && mod->flags & PRB_MODULE_IS_APP_LAYER) {
@@ -166,7 +171,14 @@ void cleanup_ip_modules()
 void run_ip_modules(struct prb_request *r)
 {
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
-		ip_modules[i]->run(&prb, r, 0);
+		struct prb_module *mod = ip_modules[i];
+
+		PRB_DEBUG("module", "Running module '%s'", mod->name);
+		int res = mod->run(&prb, r, 0);
+		if (res == 0)
+			PRB_DEBUG("module", "Succeeded running module '%s'", mod->name);
+		else
+			PRB_DEBUG("module", "Module '%s' returned with error %d", mod->name, res);
 	}
 
 	PRB_DEBUG("main", "fake ip module go brrrrrrrrrrrrr (%s)", r->ip);

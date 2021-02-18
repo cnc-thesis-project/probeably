@@ -26,7 +26,6 @@ static void tls_module_cleanup(struct probeably *p)
 
 static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	PRB_DEBUG("tls", "Running TLS prober");
 	int bytes_read = 0;
 
 	PRB_DEBUG("tls", "Grabbing certificate");

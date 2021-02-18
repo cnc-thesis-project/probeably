@@ -30,7 +30,6 @@ static void ssh_module_cleanup(struct probeably *p)
 
 static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	PRB_DEBUG("ssh", "Running SSH prober");
 	int read_len = 0;
 
 	if (prb_socket_connect(s, r->ip, r->port) < 0) {
