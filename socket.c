@@ -161,7 +161,7 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
 			PRB_DEBUG("socket", "Reading data from SSL socket");
-			err = wolfSSL_recv(s->ssl, buf, (int) count, NULL);
+			err = wolfSSL_recv(s->ssl, buf, (int) count, 0);
 			if (err < 0) {
 				PRB_ERROR("socket", "Failed reading from SSL socket: %d: %s", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;

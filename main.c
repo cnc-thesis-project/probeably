@@ -45,7 +45,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	int ttl = atoi(strtok(0, ","));
 
 	if (!ip || port < 0) {
-		PRB_ERROR("error: got invalid format from redis: %s", values);
+		PRB_ERROR("main", "error: got invalid format from redis: %s", values);
 
 		free(values);
 		return;
