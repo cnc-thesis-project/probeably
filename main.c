@@ -18,6 +18,19 @@ int WORKER_ID = 0;
 pid_t *child = 0;
 int child_len = 32;
 
+static struct timespec start_timer()
+{
+	struct timespec start;
+	clock_gettime(CLOCK_REALTIME, &start);
+	return start;
+}
+
+static float stop_timer(struct timespec start)
+{
+	struct timespec end = start_timer();
+	return ((end.tv_sec - start.tv_sec) * (long)1e9 + (end.tv_nsec - start.tv_nsec)) / 1000000000.0f;
+}
+
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	PRB_DEBUG("main", "Running port callback");
@@ -51,7 +64,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
-	PRB_DEBUG("main", "probing: %s:%d (%d)", ip, port, timestamp);
+	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
 
 	struct prb_request req;
 	req.ip = ip;
@@ -60,14 +73,17 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	if (port == 0) {
 		// ip related analysis stuff, e.g. geoip
+		struct timespec start = start_timer();
 		run_ip_modules(&req);
+		PRB_DEBUG("module", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
 		return;
 	}
 
 	// port related analysis stuff
 
-	printf("probe: %s:%d (%d)\n", ip, port, timestamp);
+	struct timespec start = start_timer();
 	run_modules(&req);
+	PRB_DEBUG("module", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
 
 	free(values);
 }

@@ -131,7 +131,7 @@ void run_modules(struct prb_request *r)
 		if (res == 0)
 			PRB_DEBUG("module", "Succeeded running module '%s'", mod->name);
 		else
-			PRB_DEBUG("module", "Module '%s' returned with error %d", mod->name, res);
+			PRB_ERROR("module", "Module '%s' returned with error %d", mod->name, res);
 
 		// This module found the application layer.
 		if (!res && mod->flags & PRB_MODULE_IS_APP_LAYER) {
@@ -150,8 +150,6 @@ void run_modules(struct prb_request *r)
 	}
 
 	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
-
-	PRB_DEBUG("module", "Finished probing port %s:%d", r->ip, r->port);
 }
 
 void init_ip_modules()
@@ -174,12 +172,11 @@ void run_ip_modules(struct prb_request *r)
 		struct prb_module *mod = ip_modules[i];
 
 		PRB_DEBUG("module", "Running module '%s'", mod->name);
+
 		int res = mod->run(&prb, r, 0);
 		if (res == 0)
 			PRB_DEBUG("module", "Succeeded running module '%s'", mod->name);
 		else
-			PRB_DEBUG("module", "Module '%s' returned with error %d", mod->name, res);
+			PRB_ERROR("module", "Module '%s' returned with error %d", mod->name, res);
 	}
-
-	PRB_DEBUG("module", "Finished probing host %s", r->ip);
 }
