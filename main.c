@@ -6,6 +6,7 @@
 #include <async.h>
 #include <unistd.h>
 #include <adapters/libev.h>
+#include <sys/mman.h>
 #include <getopt.h>
 #include "config.h"
 #include "probeably.h"
@@ -15,9 +16,18 @@
 #include "log.h"
 
 int WORKER_ID = 0;
+int *busy_workers = 0;
+pthread_mutex_t *busy_workers_lock;
 
 pid_t *child = 0;
 int child_len = 32;
+
+static void update_worker_state(int start_work)
+{
+	pthread_mutex_lock(busy_workers_lock);
+	*busy_workers += (start_work ? 1 : -1);
+	pthread_mutex_unlock(busy_workers_lock);
+}
 
 static struct timespec start_timer()
 {
@@ -41,14 +51,12 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
-
 	if (!reply || reply->elements < 2)
 		return;
 
 	char *values = strdup(reply->element[1]->str);
 
 	PRB_DEBUG("main", "Got from redis: %s", values);
-
 
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
@@ -65,7 +73,10 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
+	update_worker_state(1);
+
 	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
+	PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
 
 	struct prb_request req;
 	req.ip = ip;
@@ -76,7 +87,10 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		// ip related analysis stuff, e.g. geoip
 		struct timespec start = start_timer();
 		run_ip_modules(&req);
-		PRB_DEBUG("module", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
+
+		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
+		PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
+		(*busy_workers)--;
 		return;
 	}
 
@@ -84,7 +98,11 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	struct timespec start = start_timer();
 	run_modules(&req);
-	PRB_DEBUG("module", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
+
+	update_worker_state(0);
+
+	PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
+	PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
 
 	free(values);
 }
@@ -195,7 +213,27 @@ int main(int argc, char **argv)
 		PRB_ERROR("main", "Redis connection error: %s", c->errstr);
 		redisAsyncFree(c);
 
-		exit(1);
+		exit(EXIT_FAILURE);
+	}
+
+	// create shared memory
+	// TODO: use struct for data in shared memory
+	busy_workers = mmap(NULL, 4 + sizeof(pthread_mutex_lock), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (!busy_workers) {
+		PRB_ERROR("main", "Failed to create shared memroy");
+		exit(EXIT_FAILURE);
+	}
+
+	// place mutex lock in shared memory and init mutex lock for shared memory
+	pthread_mutexattr_t mutexattr;
+	pthread_mutexattr_init(&mutexattr);
+	pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
+
+	busy_workers_lock = (void *)&busy_workers[1];
+	if (pthread_mutex_init(busy_workers_lock, &mutexattr))
+	{
+		PRB_ERROR("main", "Failed to initialize mutex ock");
+		exit(EXIT_FAILURE);
 	}
 
 	PRB_DEBUG("main", "Starting workers...");
@@ -240,6 +278,8 @@ int main(int argc, char **argv)
 	cleanup_ip_modules();
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
+	pthread_mutex_destroy(busy_workers_lock);
+	munmap(busy_workers, 4 + sizeof(pthread_mutex_lock));
 	redisAsyncFree(c);
 	free(child);
 
