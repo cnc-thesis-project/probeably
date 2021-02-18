@@ -151,7 +151,7 @@ void run_modules(struct prb_request *r)
 
 	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
 
-	PRB_DEBUG("main", "fake probing go brrrrrrrrrrrrr (%s:%d)", r->ip, r->port);
+	PRB_DEBUG("module", "Finished probing port %s:%d", r->ip, r->port);
 }
 
 void init_ip_modules()
@@ -181,5 +181,5 @@ void run_ip_modules(struct prb_request *r)
 			PRB_DEBUG("module", "Module '%s' returned with error %d", mod->name, res);
 	}
 
-	PRB_DEBUG("main", "fake ip module go brrrrrrrrrrrrr (%s)", r->ip);
+	PRB_DEBUG("module", "Finished probing host %s", r->ip);
 }
