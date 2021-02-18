@@ -53,7 +53,7 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 	if (total <= 0) {
 		// probably the client needs to initiate communication
-		PRB_DEBUG("module", "Server not initiating communication, sending test request\n");
+		PRB_DEBUG("module", "Server not initiating communication, sending test request");
 
 		char *request = "GET / HTTP/1.1\r\nHost: www\r\n\r\n";
 		prb_socket_write(s, request, strlen(request));
@@ -70,7 +70,7 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 	if (total <= 0) {
 		// no response at all, boring
-		PRB_DEBUG("module", "Got no response from server, cannot identify service\n");
+		PRB_DEBUG("module", "Got no response from server, cannot identify service");
 
 		prb_socket_shutdown(s);
 		return 0;
@@ -79,7 +79,7 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 	// got response, return
 
 	response[total] = 0;
-	PRB_DEBUG("module", "Got response:\n%s\n", response);
+	PRB_DEBUG("module", "Got response:\n%s", response);
 
 	return total;
 }
@@ -116,13 +116,13 @@ void run_modules(struct prb_request *r)
 
 		// make sure response from test probing matches the module's protocol
 		if (response_len > 0 && mod->check(response, response_len) == -1) {
-			PRB_DEBUG("module", "Test probe response did not match with module '%s' protocol\n", mod->name);
+			PRB_DEBUG("module", "Test probe response did not match with module '%s' protocol", mod->name);
 			continue;
 		}
 
 		// if response length is 0, skip the module if it expects the server to initiate the communication
 		if (response_len == 0 && mod->flags & PRB_MODULE_SERVER_INITIATE) {
-			PRB_DEBUG("module", "Module '%s' expects the server to initiate the communication, skipping\n", mod->name);
+			PRB_DEBUG("module", "Module '%s' expects the server to initiate the communication, skipping", mod->name);
 			continue;
 		}
 
