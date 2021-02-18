@@ -12,8 +12,8 @@
 	printf("\033[38;2;%d;%d;%dm", r, g, b); \
 }
 
-#define PRB_DEBUG(LABEL, ARGS...) print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m ", WORKER_ID, LABEL); printf(ARGS); printf("\n");
-#define PRB_INFO(LABEL, ARGS...) print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m ", WORKER_ID, LABEL); printf(ARGS);
-#define PRB_ERROR(LABEL, ARGS...) print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m \033[41m", WORKER_ID, LABEL); printf(ARGS); printf("\033[0m\n");
+#define PRB_DEBUG(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m ", WORKER_ID, LABEL); printf(ARGS); printf("\n"); } while(0)
+#define PRB_INFO(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m ", WORKER_ID, LABEL); printf(ARGS); } while(0)
+#define PRB_ERROR(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s]\033[0m \033[41m", WORKER_ID, LABEL); printf(ARGS); printf("\033[0m\n"); } while (0)
 
 #endif
