@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wolfssl/ssl.h>
+#include <sys/wait.h>
 #include "module.h"
 #include "module-tls.h"
 #include "socket.h"
@@ -52,7 +53,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	}
 
 	char jarm_hash[64] = {0};
-	int jarm_pid = fork();
+	pid_t jarm_pid = fork();
 	switch (jarm_pid) {
 		case -1:
 			close(pfd[0]);
@@ -76,6 +77,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 			}
 			jarm_hash[62] = '\0';
 			close(pfd[0]);
+			waitpid(jarm_pid, NULL, 0);
 	}
 
 	PRB_DEBUG("tls", "JARM hash for %s:%d: %s", r->ip, r->port, jarm_hash);
