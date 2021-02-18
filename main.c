@@ -11,6 +11,7 @@
 #include "module.h"
 #include "socket.h"
 #include "database.h"
+#include "log.h"
 
 int WORKER_ID = 0;
 
@@ -19,7 +20,7 @@ int child_len = 32;
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
-	PRB_DEBUG("main", "Running port callback\n");
+	PRB_DEBUG("main", "Running port callback");
 
 	redisReply *reply = r;
 	sqlite3 *db = privdata;
@@ -32,7 +33,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	char *values = strdup(reply->element[1]->str);
 
-	PRB_DEBUG("main", "Got from redis: %s\n", values);
+	PRB_DEBUG("main", "Got from redis: %s", values);
 
 
 	char *ip = strtok(reply->element[1]->str, ",");
@@ -44,14 +45,13 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	int ttl = atoi(strtok(0, ","));
 
 	if (!ip || port < 0) {
-		printf("error: got invalid format from redis:\n");
-		printf("%s\n", values);
+		PRB_ERROR("error: got invalid format from redis: %s", values);
 
 		free(values);
 		return;
 	}
 
-	PRB_DEBUG("main", "probing: %s:%d (%d)\n", ip, port, timestamp);
+	PRB_DEBUG("main", "probing: %s:%d (%d)", ip, port, timestamp);
 
 	struct prb_request req;
 	req.ip = ip;
@@ -74,18 +74,18 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 static void connect_callback(const redisAsyncContext *c, int status)
 {
-	PRB_DEBUG("main", "Connecting (^ 3^)\n");
+	PRB_DEBUG("main", "Connecting (^ 3^)");
 	if (status != REDIS_OK) {
-		fprintf(stderr, "error: %s\n", c->errstr);
+		PRB_ERROR("main", "Redis connection error: %s", c->errstr);
 		return;
 	}
 }
 
 static void disconnect_callback(const redisAsyncContext *c, int status)
 {
-	PRB_DEBUG("main", "Disconnecting ( ˘ω˘)\n");
+	PRB_DEBUG("main", "Disconnecting ( ˘ω˘)");
 	if (status != REDIS_OK) {
-		fprintf(stderr, "error: %s\n", c->errstr);
+		PRB_ERROR("main", "Redis disconnect error: %s", c->errstr);
 		return;
 	}
 }
@@ -167,13 +167,13 @@ int main(int argc, char **argv)
 	c = redisAsyncConnect(hostname, port);
 
 	if (c->err) {
-		fprintf(stderr, "Connection error: %s\n", c->errstr);
+		PRB_ERROR("main", "Redis connection error: %s", c->errstr);
 		redisAsyncFree(c);
 
 		exit(1);
 	}
 
-	PRB_DEBUG("main", "Starting workers...\n");
+	PRB_DEBUG("main", "Starting workers...");
 
 	child = malloc(sizeof(pid_t) * child_len);
 

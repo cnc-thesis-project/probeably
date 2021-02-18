@@ -53,7 +53,7 @@ static void geoip_module_init(struct probeably *p)
 {
 	FILE *f = fopen(geoip_file, "r");
 	if (!f) {
-		PRB_DEBUG("geoip", "Failed to open geoip dataset\n");
+		PRB_ERROR("geoip", "Failed to open geoip dataset");
 		return;
 	}
 
@@ -89,7 +89,7 @@ static void geoip_module_init(struct probeably *p)
 	geoip_len = lines;
 	geoip_map = realloc(geoip_map, sizeof(struct geoip_table) * geoip_len);
 
-	PRB_DEBUG("geoip", "loaded %d lines of geoip routes\n", geoip_len);
+	PRB_DEBUG("geoip", "loaded %d lines of geoip routes", geoip_len);
 
 	fclose(f);
 }
@@ -108,19 +108,19 @@ static void geoip_module_cleanup(struct probeably *p)
 
 static int geoip_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	PRB_DEBUG("geoip", "Running geoip module\n");
+	PRB_DEBUG("geoip", "Running geoip module");
 
 	struct geoip_table *g = find_geoip(r->ip);
 
 	if (!g) {
-		PRB_DEBUG("geoip", "No geoip info found for address %s\n", r->ip);
+		PRB_DEBUG("geoip", "No geoip info found for address %s", r->ip);
 		return 0;
 	}
 
 	char line[256];
 	sprintf(line, "%s\t%u\t%s", g->country, g->asn, g->as_desc);
 
-	PRB_DEBUG("geoip", "%s, Country: %s, AS: %u (%s)\n", r->ip, g->country, g->asn, g->as_desc);
+	PRB_DEBUG("geoip", "%s, Country: %s, AS: %u (%s)", r->ip, g->country, g->asn, g->as_desc);
 	prb_write_data(p, r, "geoip", "info", line, strlen(line), PRB_DB_SUCCESS);
 
 	return 0;

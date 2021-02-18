@@ -29,7 +29,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 		return -1;
 	}
 
-	PRB_DEBUG("http", "Sending request '%s'\n", request);
+	PRB_DEBUG("http", "Sending request '%s'", request);
 	prb_socket_write(sock, request, strlen(request));
 
 	char *http_buffer = calloc(1, HTTP_BUFFER_SIZE);
@@ -57,7 +57,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 				// recover \r
 				*line_end = '\r';
 
-				PRB_DEBUG("http", "Content-Length: %zd\n", content_length);
+				PRB_DEBUG("http", "Content-Length: %zd", content_length);
 			}
 		}
 		if (content_offset == -1) {
@@ -76,7 +76,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 	int result = 0;
 	if (strncmp("HTTP/", http_buffer, 5)) {
-		PRB_DEBUG("http", "Not a HTTP protocol\n");
+		PRB_DEBUG("http", "Not a HTTP protocol");
 		result = -1;
 	}
 
@@ -91,7 +91,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
-	PRB_DEBUG("http", "running module on %s:%d\n", r->ip, r->port);
+	PRB_DEBUG("http", "running module on %s:%d", r->ip, r->port);
 
 	// get root, if it fails it's not a HTTP protocol
 	if (http_send_request(p, r, sock, "GET / HTTP/1.1\r\nHost: www\r\n\r\n", "get_root", 0) == -1)

@@ -19,17 +19,17 @@ static void tls_module_cleanup(struct probeably *p)
 
 static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	PRB_DEBUG("tls", "Running TLS prober\n");
+	PRB_DEBUG("tls", "Running TLS prober");
 	int bytes_read = 0;
 
-	PRB_DEBUG("tls", "Grabbing certificate\n");
+	PRB_DEBUG("tls", "Grabbing certificate");
 	if (prb_socket_connect(s, r->ip, r->port) < 0) {
 		return -1;
 	}
 	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
 
 	if (!cert) {
-		PRB_DEBUG("tls", "Failed grabbing peer certificate\n");
+		PRB_DEBUG("tls", "Failed grabbing peer certificate");
 		return -1;
 	}
 
@@ -39,15 +39,15 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 	prb_write_data(p, r, "tls", "certificate", der_cert, der_len, PRB_DB_SUCCESS);
 
 	if (!der_cert) {
-		PRB_DEBUG("tls", "Failed getting peer certificate in DER format\n");
+		PRB_DEBUG("tls", "Failed getting peer certificate in DER format");
 		return -1;
 	}
 
-	PRB_DEBUG("tls", "Running JARM\n");
+	PRB_DEBUG("tls", "Running JARM");
 
 	int pfd[2];
 	if (pipe(pfd)) {
-		PRB_DEBUG("tls", "Failed creating pipe\n");
+		PRB_ERROR("tls", "Failed creating pipe: %s", strerror(errno));
 		return -1;
 	}
 
@@ -57,7 +57,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 		case -1:
 			close(pfd[0]);
 			close(pfd[1]);
-			PRB_DEBUG("tls", "Failed fork\n");
+			PRB_ERROR("tls", "Failed forking JARM process: %s", strerror(errno));
 			return -1;
 		case 0:
 			close(pfd[0]);
@@ -71,14 +71,14 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 			close(pfd[1]);
 			int size = read(pfd[0], jarm_hash, 62);
 			if (size != 62) {
-				PRB_DEBUG("tls", "Failed getting JARM hash: %s\n", jarm_hash);
+				PRB_ERROR("tls", "Failed getting JARM hash: %s", jarm_hash);
 				return -1;
 			}
 			jarm_hash[62] = '\0';
 			close(pfd[0]);
 	}
 
-	PRB_DEBUG("tls", "JARM hash for %s:%d: %s\n", r->ip, r->port, jarm_hash);
+	PRB_DEBUG("tls", "JARM hash for %s:%d: %s", r->ip, r->port, jarm_hash);
 
 	prb_write_data(p, r, "tls", "jarm", jarm_hash, 63, PRB_DB_SUCCESS);
 
