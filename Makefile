@@ -13,7 +13,8 @@ SOURCES := main.c \
 	module-http.c \
 	module-ssh.c \
 	module-geoip.c \
-	module-tls.c
+	module-tls.c \
+	log.c
 
 all: $(PROGRAM)
 
