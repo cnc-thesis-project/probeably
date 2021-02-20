@@ -5,6 +5,10 @@
 #include <sqlite3.h>
 #include "log.h"
 
+#ifndef PRB_VERSION
+#define PRB_VERSION "no_version"
+#endif
+
 extern int WORKER_ID;
 
 struct probeably {
