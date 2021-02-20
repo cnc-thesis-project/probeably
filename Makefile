@@ -1,8 +1,15 @@
 PROGRAM := probeably
+
 VERSION := $(shell git describe --always)
+LOG_LEVEL := 0
 
 INCLUDE := -I./hiredis/ -I./include
-CFLAGS := $(INCLUDE) -fsanitize=address -ggdb -D PRB_VERSION=\"$(VERSION)\" -O3
+CFLAGS := $(INCLUDE) \
+	-fsanitize=address \
+	-ggdb \
+	-D PRB_VERSION=\"$(VERSION)\" \
+	-D PRB_LOG_LEVEL=$(LOG_LEVEL) \
+	-O3
 LDFLAGS := -lasan -lwolfssl -lm -lev -lsqlite3 -lpthread
 SOURCES := main.c \
 	ini.c \
