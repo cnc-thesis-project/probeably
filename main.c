@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 #include <sqlite3.h>
-#include <async.h>
+#include <hiredis/async.h>
 #include <unistd.h>
-#include <adapters/libev.h>
+#include <hiredis/adapters/libev.h>
 #include <sys/mman.h>
 #include <getopt.h>
 #include "config.h"
