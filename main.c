@@ -20,6 +20,7 @@ int *busy_workers = 0;
 pthread_mutex_t *busy_workers_lock;
 
 pid_t *child = 0;
+ev_child cw;
 int child_len = 32;
 
 static void update_worker_state(int start_work)
@@ -109,16 +110,17 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 static void connect_callback(const redisAsyncContext *c, int status)
 {
-	PRB_DEBUG("main", "Connecting (^ 3^)");
+	PRB_DEBUG("main", "Connecting ( ^ 3^)");
 	if (status != REDIS_OK) {
-		PRB_ERROR("main", "Redis connection error: %s", c->errstr);
-		return;
+		PRB_ERROR("main", "Failed to connect ( ╥ _╥): %s", c->errstr);
+		exit(EXIT_FAILURE);
 	}
+	PRB_DEBUG("main", "Connected! ( ^ .^)");
 }
 
 static void disconnect_callback(const redisAsyncContext *c, int status)
 {
-	PRB_DEBUG("main", "Disconnecting ( ˘ω˘)");
+	PRB_DEBUG("main", "Disconnecting ( ˘ ω˘)");
 	if (status != REDIS_OK) {
 		PRB_ERROR("main", "Redis disconnect error: %s", c->errstr);
 		return;
@@ -129,6 +131,16 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 {
 	ev_break(loop, EVBREAK_ALL);
 	kill(0, SIGINT);
+}
+
+static void child_callback(EV_P_ ev_child *w, int revents)
+{
+	ev_child_stop (EV_A_ w);
+	if (w->rstatus != 0) {
+		PRB_ERROR("main", "Failure in worker. Exiting...");
+		// TODO: clean up shit
+		exit(EXIT_FAILURE);
+	}
 }
 
 static void version()
@@ -260,10 +272,11 @@ int main(int argc, char **argv)
 		if (prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE; // TODO: kill childrens
 
+		ev_child_init(&cw, child_callback, pid, 0);
+		ev_child_start(EV_DEFAULT_ &cw);
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
 	} else {
 		// child path
-
 		// give parent time to create table to ensure it is available
 		sleep(1);
 
