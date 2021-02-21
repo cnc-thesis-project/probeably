@@ -13,6 +13,7 @@ static char ssh_buffer[SSH_BUFFER_SIZE];
 
 static int ssh_module_check(const char *response, int len)
 {
+	(void) len;
 	if (strncmp(response, "SSH-", 4))
 		return -1;
 	return 0;
@@ -20,12 +21,12 @@ static int ssh_module_check(const char *response, int len)
 
 static void ssh_module_init(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static void ssh_module_cleanup(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)

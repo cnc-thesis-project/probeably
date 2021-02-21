@@ -10,6 +10,7 @@
 
 static int http_module_check(const char *response, int len)
 {
+	(void) len;
 	if (strncmp("HTTP/", response, 5))
 		return -1;
 	return 0;
@@ -17,12 +18,12 @@ static int http_module_check(const char *response, int len)
 
 static void http_module_init(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static void http_module_cleanup(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static int http_send_request(	struct probeably *p, struct prb_request *r, struct prb_socket *sock,
@@ -30,7 +31,6 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 {
 	char *ip = r->ip;
 	int port = r->port;
-	int timestamp = r->timestamp;
 
 	PRB_DEBUG("http", "Testing '%s'", type);
 
@@ -42,9 +42,9 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 	char *http_buffer = calloc(1, HTTP_BUFFER_SIZE);
 
-	size_t total = 0;
-	size_t content_length = -1;
-	size_t content_offset = -1;
+	int total = 0;
+	int content_length = -1;
+	int content_offset = -1;
 	while (total < HTTP_BUFFER_SIZE - 1 && (content_offset == -1 || total - content_offset < content_length)) {
 		int len = prb_socket_read(sock, http_buffer + total, HTTP_BUFFER_SIZE - 1 - total);
 		if (len <= 0)
@@ -65,7 +65,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 				// recover \r
 				*line_end = '\r';
 
-				PRB_DEBUG("http", "Content-Length: %zd", content_length);
+				PRB_DEBUG("http", "Content-Length: %d", content_length);
 			}
 		}
 		if (content_offset == -1) {

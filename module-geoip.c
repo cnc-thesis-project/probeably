@@ -51,6 +51,7 @@ static struct geoip_table *find_geoip(const char *ip)
 
 static void geoip_module_init(struct probeably *p)
 {
+	(void) p;
 	FILE *f = fopen(geoip_file, "r");
 	if (!f) {
 		PRB_ERROR("geoip", "Failed to open geoip dataset");
@@ -96,6 +97,7 @@ static void geoip_module_init(struct probeably *p)
 
 static void geoip_module_cleanup(struct probeably *p)
 {
+	(void) p;
 	for (int i = 0; i < geoip_len; i++) {
 		free(geoip_map[i].country);
 		free(geoip_map[i].as_desc);
@@ -108,6 +110,7 @@ static void geoip_module_cleanup(struct probeably *p)
 
 static int geoip_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
+	(void) s;
 	struct geoip_table *g = find_geoip(r->ip);
 
 	if (!g) {

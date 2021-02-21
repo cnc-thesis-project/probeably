@@ -7,8 +7,8 @@
 
 struct probeably prb;
 
-#define NUM_MODULES (sizeof(modules) / sizeof(*modules))
-#define NUM_IP_MODULES (sizeof(ip_modules) / sizeof(*ip_modules))
+#define NUM_MODULES (int)(sizeof(modules) / sizeof(*modules))
+#define NUM_IP_MODULES (int)(sizeof(ip_modules) / sizeof(*ip_modules))
 
 struct prb_module *modules[] = {
 	&module_tls,
@@ -34,7 +34,7 @@ void cleanup_modules()
 	}
 }
 
-static int test_probe(struct prb_request *r, struct prb_socket *s, char *response, int size)
+static int test_probe(struct prb_request *r, struct prb_socket *s, char *response, size_t size)
 {
 	PRB_DEBUG("module", "Test probing");
 
