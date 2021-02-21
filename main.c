@@ -16,18 +16,27 @@
 #include "log.h"
 
 int WORKER_ID = 0;
-int *busy_workers = 0;
-pthread_mutex_t *busy_workers_lock;
 
 pid_t *child = 0;
 ev_child cw;
 int child_len = 32;
 
+// things to put in shared memory
+struct shm_data
+{
+	int busy_workers;
+	pthread_mutex_t busy_workers_lock;
+} *shm;
+
+
 static void update_worker_state(int start_work)
 {
-	pthread_mutex_lock(busy_workers_lock);
-	*busy_workers += (start_work ? 1 : -1);
-	pthread_mutex_unlock(busy_workers_lock);
+	pthread_mutex_lock(&shm->busy_workers_lock);
+
+	shm->busy_workers += (start_work ? 1 : -1);
+	PRB_DEBUG("main", "Busy workers [%d/%d]", shm->busy_workers, child_len);
+
+	pthread_mutex_unlock(&shm->busy_workers_lock);
 }
 
 static struct timespec start_timer()
@@ -81,36 +90,27 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
-	update_worker_state(1);
-
 	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
-	PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
+	update_worker_state(1);
 
 	struct prb_request req;
 	req.ip = ip;
 	req.port = port;
 	req.timestamp = timestamp;
 
-	if (port == 0) {
-		// ip related analysis stuff, e.g. geoip
-		struct timespec start = start_timer();
-		run_ip_modules(&req);
-
-		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
-		PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
-		(*busy_workers)--;
-		return;
-	}
-
-	// port related analysis stuff
-
+	// run the module
 	struct timespec start = start_timer();
-	run_modules(&req);
+	if (port == 0)
+		run_ip_modules(&req); // ip related analysis stuff, e.g. geoip
+	else
+		run_modules(&req); // port related
 
+	// done with the work
+	if (port == 0)
+		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
+	else
+		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
 	update_worker_state(0);
-
-	PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
-	PRB_DEBUG("main", "Busy workers [%d/%d]", *busy_workers, child_len);
 
 	free(values);
 }
@@ -239,20 +239,18 @@ int main(int argc, char **argv)
 	}
 
 	// create shared memory
-	// TODO: use struct for data in shared memory
-	busy_workers = mmap(NULL, 4 + 8, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-	if (!busy_workers) {
+	shm = mmap(NULL, sizeof(*shm), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	if (!shm) {
 		PRB_ERROR("main", "Failed to create shared memroy");
 		exit(EXIT_FAILURE);
 	}
 
-	// place mutex lock in shared memory and init mutex lock for shared memory
+	// init mutex lock in shared memory
 	pthread_mutexattr_t mutexattr;
 	pthread_mutexattr_init(&mutexattr);
 	pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
-	busy_workers_lock = (void *)&busy_workers[1];
-	if (pthread_mutex_init(busy_workers_lock, &mutexattr))
+	if (pthread_mutex_init(&shm->busy_workers_lock, &mutexattr))
 	{
 		PRB_ERROR("main", "Failed to initialize mutex ock");
 		exit(EXIT_FAILURE);
@@ -301,8 +299,8 @@ int main(int argc, char **argv)
 	cleanup_ip_modules();
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
-	pthread_mutex_destroy(busy_workers_lock);
-	munmap(busy_workers, 4 + 8);
+	pthread_mutex_destroy(&shm->busy_workers_lock);
+	munmap(shm, sizeof(*shm));
 	redisAsyncFree(c);
 	free(child);
 
