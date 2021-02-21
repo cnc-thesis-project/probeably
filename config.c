@@ -9,6 +9,7 @@ struct _prb_config prb_config;
 static int handler(void *user, const char *section, const char *name,
 		const char *value)
 {
+	(void)user;
 	PRB_DEBUG("config", "Getting key '%s' with value '%s' in section '%s'", name, value, section);
 
 	if (!strcmp(section, "general") && !strcmp(name, "num_workers")) {
@@ -20,6 +21,7 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "read_timeout")) {
 		prb_config.write_timeout = atoi(value);
 	}
+	return 0;
 }
 
 int prb_load_config(char *file)
@@ -30,4 +32,5 @@ int prb_load_config(char *file)
 	}
 
 	PRB_DEBUG("config", "Config %s loaded", file);
+	return 0;
 }

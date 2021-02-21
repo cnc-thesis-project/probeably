@@ -27,7 +27,6 @@ void prb_socket_cleanup()
 
 static int connect_raw(struct prb_socket *s, const char *ip, int port)
 {
-	int sock;
 	int err;
 	PRB_DEBUG("socket", "Connecting raw socket");
 	s->sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -99,8 +98,6 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 
 		wolfSSL_set_fd(s->ssl, s->sock);
 
-		struct timeval start_time, end_time;
-		gettimeofday(&start_time, NULL);
 		err = wolfSSL_connect(s->ssl);
 		if (err != SSL_SUCCESS) {
 			PRB_ERROR("socket", "SSL handshake failed: %d: %s", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));

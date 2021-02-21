@@ -47,7 +47,6 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 {
 	PRB_DEBUG("database", "Writing %zd bytes to database", data_size);
 	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
-	char *err_msg = 0;
 	sqlite3_stmt *res = 0;
 
 	int rc = sqlite3_prepare_v2(prb->db, query, -1, &res, 0);

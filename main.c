@@ -48,7 +48,6 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	PRB_DEBUG("main", "Running port callback");
 
 	redisReply *reply = r;
-	sqlite3 *db = privdata;
 
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
@@ -61,11 +60,19 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
-	char *protocol = strtok(0, ",");
+
+	// protocol
+	strtok(0, ",");
 	int timestamp = atoi(strtok(0, ","));
-	int status = atoi(strtok(0, ","));
-	int reason = atoi(strtok(0, ","));
-	int ttl = atoi(strtok(0, ","));
+
+	/*
+	// status
+	strtok(0, ",");
+	// reason
+	strtok(0, ",");
+	//ttl
+	strtok(0, ",");
+	*/
 
 	if (!ip || port < 0) {
 		PRB_ERROR("main", "error: got invalid format from redis: %s", values);
@@ -129,12 +136,15 @@ static void disconnect_callback(const redisAsyncContext *c, int status)
 
 static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 {
+	(void) w;
+	(void) revents;
 	ev_break(loop, EVBREAK_ALL);
 	kill(0, SIGINT);
 }
 
 static void child_callback(EV_P_ ev_child *w, int revents)
 {
+	(void) revents;
 	ev_child_stop (EV_A_ w);
 	if (w->rstatus != 0) {
 		PRB_ERROR("main", "Failure in worker. Exiting...");
@@ -211,7 +221,7 @@ int main(int argc, char **argv)
 	child_len = prb_config.num_workers;
 
 	redisAsyncContext *c;
-	redisReply *reply;
+	//redisReply *reply;
 
 	prb_socket_init();
 	init_modules();
@@ -230,7 +240,7 @@ int main(int argc, char **argv)
 
 	// create shared memory
 	// TODO: use struct for data in shared memory
-	busy_workers = mmap(NULL, 4 + sizeof(pthread_mutex_lock), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	busy_workers = mmap(NULL, 4 + 8, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	if (!busy_workers) {
 		PRB_ERROR("main", "Failed to create shared memroy");
 		exit(EXIT_FAILURE);
@@ -292,7 +302,7 @@ int main(int argc, char **argv)
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
 	pthread_mutex_destroy(busy_workers_lock);
-	munmap(busy_workers, 4 + sizeof(pthread_mutex_lock));
+	munmap(busy_workers, 4 + 8);
 	redisAsyncFree(c);
 	free(child);
 

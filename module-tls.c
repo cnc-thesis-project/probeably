@@ -10,24 +10,24 @@
 
 static int tls_module_check(const char *response, int len)
 {
+	(void) response;
+	(void) len;
 	// whether the tls module should run or not is decided based on sock type
 	return 0;
 }
 
 static void tls_module_init(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static void tls_module_cleanup(struct probeably *p)
 {
-
+	(void) p;
 }
 
 static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	int bytes_read = 0;
-
 	PRB_DEBUG("tls", "Grabbing certificate");
 	if (prb_socket_connect(s, r->ip, r->port) < 0) {
 		return -1;
@@ -72,6 +72,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 			char jarm_cmd[256];
 			snprintf(jarm_cmd, 256, "python3 ./jarm/jarm.py -s -p %d %s", r->port, r->ip);
 			int res = system(jarm_cmd);
+			(void) res;
 			exit(EXIT_SUCCESS);
 		default:
 			close(pfd[1]);
