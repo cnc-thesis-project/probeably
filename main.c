@@ -19,7 +19,7 @@ int WORKER_ID = 0;
 
 pid_t *child = 0;
 ev_child cw;
-int child_len = 32;
+int worker_len = 32;
 
 // things to put in shared memory
 struct shm_data
@@ -34,7 +34,7 @@ static void update_worker_state(int start_work)
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
 	shm->busy_workers += (start_work ? 1 : -1);
-	PRB_DEBUG("main", "Busy workers [%d/%d]", shm->busy_workers, child_len);
+	PRB_DEBUG("main", "Busy workers [%d/%d]", shm->busy_workers, worker_len);
 
 	pthread_mutex_unlock(&shm->busy_workers_lock);
 }
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 	}
 
 	prb_load_config(config);
-	child_len = prb_config.num_workers;
+	worker_len = prb_config.num_workers;
 
 	redisAsyncContext *c;
 	//redisReply *reply;
@@ -252,16 +252,17 @@ int main(int argc, char **argv)
 
 	if (pthread_mutex_init(&shm->busy_workers_lock, &mutexattr))
 	{
-		PRB_ERROR("main", "Failed to initialize mutex ock");
+		PRB_ERROR("main", "Failed to initialize mutex lock");
 		exit(EXIT_FAILURE);
 	}
 
 	PRB_DEBUG("main", "Starting workers...");
 
-	child = malloc(sizeof(pid_t) * child_len);
+	child = malloc(sizeof(pid_t) * worker_len);
 
 	pid_t pid = 0;
-	for (int i = 0; i < child_len; i++) {
+	int i = 0;
+	for (; i < worker_len; i++) {
 		pid = fork();
 		if (pid == 0)
 			break;
@@ -270,21 +271,25 @@ int main(int argc, char **argv)
 
 	WORKER_ID = getpid();
 
-	// sqlite database has to be opened after fork or it may corrupt the file
-	prb.db = prb_open_database("probeably.db");
-	if (!prb.db)
-		return EXIT_FAILURE;
-
 	if (pid != 0) {
 		// parent path
-		if (prb_init_database(prb.db) == -1)
-			return EXIT_FAILURE; // TODO: kill childrens
-
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
 	} else {
 		// child path
+
+		// open worker unique sqlite database
+		char db_name[128];
+		snprintf(db_name, sizeof(db_name), "db/probe-%d.db", i);
+
+		prb.db = prb_open_database(db_name);
+		if (!prb.db)
+			return EXIT_FAILURE;
+
+		if (prb_init_database(prb.db) == -1)
+			return EXIT_FAILURE;
+
 		// give parent time to create table to ensure it is available
 		sleep(1);
 
