@@ -12,19 +12,19 @@
 // otherwise it can mess up stuff like single if-statement.
 
 #if PRB_LOG_LEVEL < 1
-	#define PRB_DEBUG(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s-debug]\033[0m ", WORKER_ID, LABEL); printf(ARGS); printf("\n"); } while(0)
+	#define PRB_DEBUG(LABEL, ...) do { print_hash_color(WORKER_ID); printf("[%d-%s-debug]\033[0m ", WORKER_ID, LABEL); printf(__VA_ARGS__); printf("\n"); } while(0)
 #else
 	#define PRB_DEBUG
 #endif
 
 #if PRB_LOG_LEVEL < 2
-	#define PRB_INFO(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s-info]\033[0m ", WORKER_ID, LABEL); printf(ARGS); } while(0)
+	#define PRB_INFO(LABEL, ...) do { print_hash_color(WORKER_ID); printf("[%d-%s-info]\033[0m ", WORKER_ID, LABEL); printf(__VA_ARGS__); } while(0)
 #else
 	#define PRB_INFO
 #endif
 
 #if PRB_LOG_LEVEL < 3
-	#define PRB_ERROR(LABEL, ARGS...) do { print_hash_color(WORKER_ID); printf("[%d-%s-error]\033[0m \033[41m", WORKER_ID, LABEL); printf(ARGS); printf("\033[0m\n"); } while (0)
+	#define PRB_ERROR(LABEL, ...) do { print_hash_color(WORKER_ID); printf("[%d-%s-error]\033[0m \033[41m", WORKER_ID, LABEL); printf(__VA_ARGS__); printf("\033[0m\n"); } while (0)
 #else
 	#define PRB_ERROR
 #endif
