@@ -8,6 +8,7 @@ struct _prb_config {
 	int read_timeout;
 	int write_timeout;
 	int ip2asn_ttl;
+	int single_db;
 };
 
 extern struct _prb_config prb_config;
