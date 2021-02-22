@@ -164,15 +164,29 @@ static void geoip_module_init(struct probeably *p)
 	(void) p;
 
 	// download ip2asn database file if not found locally,
-	// or when it's configured to redownload at startup
+	// or update if the last download time exceeds configured ttl
 
-	if(access(database_path, F_OK) != 0 || prb_config.redownload_ip2asn != 0) {
+	int download = 0;
+
+	if (access(database_path, F_OK) != 0) {
+		download = 1;
+	} else {
+		struct stat attrib;
+		stat(database_path, &attrib);
+
+		if (prb_config.ip2asn_ttl >= 0 && time(0) - attrib.st_mtime >= prb_config.ip2asn_ttl)
+			download = 1;
+	}
+
+	if (download) {
 		PRB_DEBUG("geoip", "Downloading ip2asn database from %s", database_url);
 		if (url_download(database_url, database_path) == -1)
 			return; // TODO: return -1
 	} else {
 		PRB_DEBUG("geoip", "Using cached ip2asn database");
 	}
+
+	exit(0);
 
 	char *database = inflate_database(database_path);
 	if (!database)

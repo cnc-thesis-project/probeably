@@ -18,11 +18,11 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "read_timeout")) {
 		prb_config.read_timeout = atoi(value);
 	}
-	else if (!strcmp(section, "general") && !strcmp(name, "read_timeout")) {
+	else if (!strcmp(section, "general") && !strcmp(name, "write_timeout")) {
 		prb_config.write_timeout = atoi(value);
 	}
-	else if (!strcmp(section, "general") && !strcmp(name, "read_timeout")) {
-		prb_config.redownload_ip2asn = atoi(value); // TODO: bool
+	else if (!strcmp(section, "general") && !strcmp(name, "ip2asn_ttl")) {
+		prb_config.ip2asn_ttl = atoi(value); // TODO: bool
 	}
 	return 0;
 }
