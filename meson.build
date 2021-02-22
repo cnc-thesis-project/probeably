@@ -16,6 +16,7 @@ inc = include_directories('include')
 
 executable('probeably',
            'module-geoip.c',
+           'module-rdns.c',
            'database.c',
            'module-http.c',
            'ini.c',
