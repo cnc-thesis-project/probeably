@@ -21,18 +21,20 @@ static int rdns_module_run(struct probeably *p, struct prb_request *r, struct pr
 	(void)p;
 	(void)s;
 
-	struct hostent *hent;
-	struct in_addr addr;
+	struct sockaddr_in sa = {0};
+	sa.sin_family = AF_INET;
 
-	if(!inet_aton(r->ip, &addr))
+	if(!inet_pton(AF_INET, r->ip, &sa.sin_addr))
 		return -1;
 
-	if((hent = gethostbyaddr((char *)&(addr.s_addr), sizeof(addr.s_addr), AF_INET)))
-	{
-		PRB_DEBUG("rdns", "Reverse DNS lookup of %s: %s", r->ip, hent->h_name);
-		prb_write_data(&prb, r, "rdns", "name", hent->h_name, strlen(hent->h_name), PRB_DB_SUCCESS);
+	char host[NI_MAXHOST];
+
+	int res = getnameinfo((struct sockaddr *)&sa, sizeof(sa), host, sizeof(host), 0, 0, NI_NAMEREQD);
+	if (!res) {
+		PRB_DEBUG("rdns", "Reverse DNS lookup of %s: %s", r->ip, host);
+		prb_write_data(&prb, r, "rdns", "name", host, strlen(host), PRB_DB_SUCCESS);
 	} else {
-		PRB_DEBUG("rdns", "Reverse DNS lookup of %s not found", r ->ip);
+		PRB_DEBUG("rdns", "Reverse DNS lookup of %s not found", r->ip);
 	}
 
 	return 0;
