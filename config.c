@@ -22,7 +22,7 @@ static int handler(void *user, const char *section, const char *name,
 		prb_config.write_timeout = atoi(value);
 	}
 	else if (!strcmp(section, "general") && !strcmp(name, "ip2asn_ttl")) {
-		prb_config.ip2asn_ttl = atoi(value); // TODO: bool
+		prb_config.ip2asn_ttl = atoi(value);
 	}
 	return 0;
 }
