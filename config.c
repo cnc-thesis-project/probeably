@@ -24,6 +24,9 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "ip2asn_ttl")) {
 		prb_config.ip2asn_ttl = atoi(value);
 	}
+	else if (!strcmp(section, "general") && !strcmp(name, "single_db")) {
+		prb_config.single_db = atoi(value);
+	}
 	return 0;
 }
 

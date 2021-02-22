@@ -279,7 +279,10 @@ int main(int argc, char **argv)
 	} else {
 		// child path
 
-		// open worker unique sqlite database
+		// if single_db is not set, open worker unique sqlite database
+		if (prb_config.single_db) {
+			i = 0;
+		}
 		char db_name[128];
 		snprintf(db_name, sizeof(db_name), "db/probe-%d.db", i);
 
