@@ -186,8 +186,6 @@ static void geoip_module_init(struct probeably *p)
 		PRB_DEBUG("geoip", "Using cached ip2asn database");
 	}
 
-	exit(0);
-
 	char *database = inflate_database(database_path);
 	if (!database)
 		return; // TODO: return -1
