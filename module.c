@@ -2,6 +2,7 @@
 #include "module-http.h"
 #include "module-ssh.h"
 #include "module-geoip.h"
+#include "module-rdns.h"
 #include "module-tls.h"
 #include "database.h"
 
@@ -18,6 +19,7 @@ struct prb_module *modules[] = {
 
 struct prb_module *ip_modules[] = {
 	&module_geoip,
+	&module_rdns,
 };
 
 void init_modules()
