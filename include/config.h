@@ -7,6 +7,7 @@ struct _prb_config {
 	int num_workers;
 	int read_timeout;
 	int write_timeout;
+	int redownload_ip2asn;
 };
 
 extern struct _prb_config prb_config;
