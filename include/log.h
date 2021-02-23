@@ -2,7 +2,6 @@
 #define _PROBEABLY_LOG_H
 
 #include <stdio.h>
-#include <time.h>
 #include "probeably.h"
 
 #ifndef PRB_LOG_LEVEL
@@ -31,7 +30,5 @@
 #endif
 
 void print_hash_color(int num);
-struct timespec start_timer();
-float stop_timer(struct timespec start);
 
 #endif

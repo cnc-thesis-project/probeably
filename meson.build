@@ -27,6 +27,7 @@ executable('probeably',
            'log.c',
            'config.c',
            'socket.c',
+           'util.c',
            install : true,
            dependencies : [curl_dep, hiredis_dep, sqlite3_dep, thread_dep, m_dep, ev_dep, wolfssl_dep, zlib_dep],
            include_directories : inc)
