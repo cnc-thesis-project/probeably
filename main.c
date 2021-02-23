@@ -39,19 +39,6 @@ static void update_worker_state(int start_work)
 	pthread_mutex_unlock(&shm->busy_workers_lock);
 }
 
-static struct timespec start_timer()
-{
-	struct timespec start;
-	clock_gettime(CLOCK_REALTIME, &start);
-	return start;
-}
-
-static float stop_timer(struct timespec start)
-{
-	struct timespec end = start_timer();
-	return ((end.tv_sec - start.tv_sec) * (long)1e9 + (end.tv_nsec - start.tv_nsec)) / 1000000000.0f;
-}
-
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	PRB_DEBUG("main", "Running port callback");

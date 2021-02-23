@@ -38,6 +38,13 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 		return -1;
 	}
 
+	// right before sending request
+	struct timespec request_start = start_timer();
+	// time it took to get first packet
+	float response_start = 0.0f;
+	// time it took to get the whole response
+	float response_end;
+
 	prb_socket_write(sock, request, strlen(request));
 
 	char *http_buffer = calloc(1, HTTP_BUFFER_SIZE);
@@ -47,8 +54,20 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	int content_offset = -1;
 	while (total < HTTP_BUFFER_SIZE - 1 && (content_offset == -1 || total - content_offset < content_length)) {
 		int len = prb_socket_read(sock, http_buffer + total, HTTP_BUFFER_SIZE - 1 - total);
+
+		// measure time it took to get the first packet of response
+		if (response_start == 0.0f)
+			response_start = stop_timer(request_start);
+
 		if (len <= 0)
 			break;
+
+		// this could actually be outside while loop but that will result the measurement
+		// to be off in case the server doesn't close the socket,
+		// thus to get reliable time stop_timer has to be called everytime it gets non-empty data.
+		// also the time becomes incorrect if it the response exceeds the buffer size
+		// since it will stop reading and proceed to next step
+		response_end = stop_timer(request_start);
 
 		total += len;
 
@@ -89,6 +108,14 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	}
 
 	prb_write_data(p, r, "http", type, http_buffer, total,
+			(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
+
+	char type_buf[128];
+	char buf[128];
+	snprintf(type_buf, sizeof(type_buf), "%s_time", type);
+	snprintf(buf, sizeof(buf), "%f %f", response_start, response_end);
+
+	prb_write_data(p, r, "http", type_buf, buf, strlen(buf),
 			(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
 
 	free(http_buffer);
