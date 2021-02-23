@@ -244,6 +244,13 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	// get current date/time
+	time_t cur_time;
+	struct tm *cur_tm;
+
+	time(&cur_time);
+	cur_tm = localtime(&cur_time);
+
 	PRB_DEBUG("main", "Starting workers...");
 
 	child = malloc(sizeof(pid_t) * worker_len);
@@ -268,11 +275,15 @@ int main(int argc, char **argv)
 		// child path
 
 		// if single_db is not set, open worker unique sqlite database
+		int id = WORKER_ID;
 		if (prb_config.single_db) {
-			i = 0;
+			id = 0;
 		}
+
 		char db_name[128];
-		snprintf(db_name, sizeof(db_name), "db/probe-%d.db", i);
+		snprintf(db_name, sizeof(db_name), "db/%04d-%02d-%02d_%02d-%02d-%02d_%d.db",
+				1900 + cur_tm->tm_year, cur_tm->tm_mon, cur_tm->tm_mday,
+				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec, id);
 
 		prb.db = prb_open_database(db_name);
 		if (!prb.db)
@@ -280,9 +291,6 @@ int main(int argc, char **argv)
 
 		if (prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE;
-
-		// give parent time to create table to ensure it is available
-		sleep(1);
 
 		redisLibevAttach(EV_DEFAULT_ c);
 		redisAsyncSetConnectCallback(c, connect_callback);
