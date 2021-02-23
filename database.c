@@ -12,8 +12,9 @@ sqlite3 *prb_open_database(const char *path)
 		return 0;
 	}
 
-	// set 10 seconds timeout
-	sqlite3_busy_timeout(db, 10000);
+	// set one hour timeout
+	// this is only relevant for single_db, which should only be used for debugging purpose
+	sqlite3_busy_timeout(db, 3600 * 1000);
 
 	return db;
 }
