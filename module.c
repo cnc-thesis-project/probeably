@@ -57,8 +57,10 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 		// probably the client needs to initiate communication
 		PRB_DEBUG("module", "Server not initiating communication, sending test request");
 
-		char *request = "GET / HTTP/1.1\r\nHost: www\r\n\r\n";
-		prb_socket_write(s, request, strlen(request));
+		char request_header[256];
+		snprintf(request_header, sizeof(request_header),
+				"HEAD / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+		prb_socket_write(s, request_header, strlen(request_header));
 
 		size_t total = 0;
 		while (total < size - 1) {

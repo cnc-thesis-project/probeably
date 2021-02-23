@@ -9,6 +9,8 @@
 
 #define HTTP_BUFFER_SIZE (16*1024)
 
+const char *user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:86.0) Gecko/20100101 Firefox/86.0";
+
 static int http_module_check(const char *response, int len)
 {
 	(void) len;
@@ -127,42 +129,63 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
+	char request_header[256];
+
 	// get root, if it fails it's not a HTTP protocol
-	if (http_send_request(p, r, sock, "GET / HTTP/1.1\r\nHost: www\r\n\r\n", "get_root", 0) == -1)
+	snprintf(request_header, sizeof(request_header),
+			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	if (http_send_request(p, r, sock, request_header, "get_root", 0) == -1)
 		return -1;
 
 	// the rest of the requests don't return if it fails
 	// because we already know that it worked for GET request
 
 	// head root
-	http_send_request(p, r, sock, "HEAD / HTTP/1.1\r\nHost: www\r\n\r\n", "head_root", 1);
+	snprintf(request_header, sizeof(request_header),
+			"HEAD / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "head_root", 1);
+
+	// very simple get
+	http_send_request(p, r, sock, "GET / HTTP/1.1\r\n\r\n", "very_simple_get", 0);
 
 	// get non existing file
-	http_send_request(p, r, sock, "GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nHost: www\r\n\r\n", "not_exist", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "not_exist", 0);
 
 	// get root with invalid http version
-	http_send_request(p, r, sock, "GET / HTTP/1.999\r\nHost: www\r\n\r\n", "invalid_version", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET / HTTP/1.999\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "invalid_version", 0);
 
 	// get root with invalid protocol
-	http_send_request(p, r, sock, "GET / PTTH/1.1\r\nHost: www\r\n\r\n", "invalid_protocol", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET / PTTH/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "invalid_protocol", 0);
 
 	// get very long path (1000 characters)
-	char request_buffer[2048];
 	char aaaaa[1001];
 	memset(aaaaa, 'a', sizeof(aaaaa)-1);
 	aaaaa[sizeof(aaaaa)-1] = 0;
 
-	sprintf(request_buffer, "GET /%s HTTP/1.1\r\nHost: www\r\n\r\n", aaaaa);
-	http_send_request(p, r, sock, request_buffer, "long_path", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET /%s HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", aaaaa, user_agent);
+	http_send_request(p, r, sock, request_header, "long_path", 0);
 
 	// get favicon
-	http_send_request(p, r, sock, "GET /favicon.ico HTTP/1.1\r\nHost: www\r\n\r\n", "get_favicon", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET /favicon.ico HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "get_favicon", 0);
 
 	// get robots.txt
-	http_send_request(p, r, sock, "GET /robots.txt HTTP/1.1\r\nHost: www\r\n\r\n", "get_robots", 0);
+	snprintf(request_header, sizeof(request_header),
+			"GET /robots.txt HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "get_robots", 0);
 
 	// delete root
-	http_send_request(p, r, sock, "DELETE / HTTP/1.1\r\nHost: www\r\n\r\n", "delete_root", 0);
+	snprintf(request_header, sizeof(request_header),
+			"DELETE / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	http_send_request(p, r, sock, request_header, "delete_root", 0);
 
 	return 0;
 }
