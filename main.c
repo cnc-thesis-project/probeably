@@ -14,6 +14,7 @@
 #include "socket.h"
 #include "database.h"
 #include "log.h"
+#include "util.h"
 
 int WORKER_ID = 0;
 

@@ -5,6 +5,7 @@
 #include "socket.h"
 #include "database.h"
 #include "probeably.h"
+#include "util.h"
 
 #define HTTP_BUFFER_SIZE (16*1024)
 
