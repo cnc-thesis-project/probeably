@@ -46,7 +46,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 	// time it took to get first packet
 	float response_start = 0.0f;
 	// time it took to get the whole response
-	float response_end;
+	float response_end = 0.0f;
 
 	prb_socket_write(sock, request, strlen(request));
 
