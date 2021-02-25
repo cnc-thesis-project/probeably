@@ -129,7 +129,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 static int http_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *sock)
 {
-	char request_header[256];
+	char request_header[2048];
 
 	// get root, if it fails it's not a HTTP protocol
 	snprintf(request_header, sizeof(request_header),
