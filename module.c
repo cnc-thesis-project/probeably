@@ -52,8 +52,11 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 		total += len;
 	}
+	prb_socket_shutdown(s);
 
 	if (total <= 0) {
+		if (prb_socket_connect(s, r->ip, r->port) < 0)
+			return -1;
 		// probably the client needs to initiate communication
 		PRB_DEBUG("module", "Server not initiating communication, sending test request");
 
@@ -70,13 +73,13 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 			total += len;
 		}
+		prb_socket_shutdown(s);
 	}
 
 	if (total <= 0) {
 		// no response at all, boring
 		PRB_DEBUG("module", "Got no response from server, cannot identify service");
 
-		prb_socket_shutdown(s);
 		return 0;
 	}
 

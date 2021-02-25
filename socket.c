@@ -46,11 +46,13 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 
 	if (setsockopt (s->sock, SOL_SOCKET, SO_RCVTIMEO, &read_timeout_val, sizeof(read_timeout_val)) < 0) {
 		PRB_ERROR("socket", "Failed setting receive timeout: %s", strerror(errno));
+		close(s->sock);
 		return -1;
 	}
 
     if (setsockopt (s->sock, SOL_SOCKET, SO_SNDTIMEO, &write_timeout_val, sizeof(write_timeout_val)) < 0) {
 		PRB_ERROR("socket", "Failed setting send timeout: %s", strerror(errno));
+		close(s->sock);
 		return -1;
 	}
 
@@ -62,6 +64,7 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 	err = connect(s->sock, (struct sockaddr *) &addr, sizeof(addr));
 	if (err < 0) {
 		PRB_ERROR("socket", "Connection failed: %s", strerror(errno));
+		close(s->sock);
 		return -1;
 	}
 
@@ -104,6 +107,7 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 			wolfSSL_CTX_free(s->ctx);
 			wolfSSL_free(s->ssl);
 			shutdown(s->sock, SHUT_RDWR);
+			close(s->sock);
 			if(connect_raw(s, ip, port) < 0) {
 				return -1;
 			}
@@ -130,6 +134,7 @@ void prb_socket_shutdown(struct prb_socket *s)
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Shutting down raw socket");
 			shutdown(s->sock, SHUT_RDWR);
+			close(s->sock);
 			break;
 	}
 }
@@ -149,6 +154,7 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 			return err;
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Writing data to raw socket");
+			PRB_DEBUG("socket", "sock=%d, buf=%.4s, buf_addr=%p, count=%d", s->sock, buf, buf, count);
 			err = write(s->sock, buf, count);
 			if (err < 0) {
 				PRB_ERROR("socket", "Error writing to socket: %s", strerror(errno));

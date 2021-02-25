@@ -33,7 +33,7 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 		return -1;
 	}
 	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
-
+	prb_socket_shutdown(s);
 	if (!cert) {
 		PRB_DEBUG("tls", "Failed grabbing peer certificate");
 		return -1;

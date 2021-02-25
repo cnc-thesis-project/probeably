@@ -41,6 +41,7 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	if (ssh_module_check(ssh_buffer, read_len)) {
 		PRB_DEBUG("ssh", "Not an SSH protocol\n");
+		prb_socket_shutdown(s);
 		return -1;
 	}
 

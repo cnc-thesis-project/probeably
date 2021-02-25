@@ -44,6 +44,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	PRB_DEBUG("main", "Running port callback");
 
+
 	redisReply *reply = r;
 
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
