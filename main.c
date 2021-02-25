@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 
 		char db_name[128];
 		snprintf(db_name, sizeof(db_name), "db/%04d-%02d-%02d_%02d-%02d-%02d_%d.db",
-				1900 + cur_tm->tm_year, cur_tm->tm_mon, cur_tm->tm_mday,
+				1900 + cur_tm->tm_year, cur_tm->tm_mon + 1, cur_tm->tm_mday,
 				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec, id);
 
 		prb.db = prb_open_database(db_name);
