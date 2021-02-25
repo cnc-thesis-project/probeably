@@ -135,9 +135,14 @@ static void child_callback(EV_P_ ev_child *w, int revents)
 	(void) revents;
 	ev_child_stop (EV_A_ w);
 	if (w->rstatus != 0) {
-		PRB_ERROR("main", "Failure in worker. Exiting...");
+		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting...", w->pid, w->rstatus);
 		// TODO: clean up shit
+		kill(0, SIGINT);
 		exit(EXIT_FAILURE);
+	} else {
+		PRB_ERROR("main", "Worker pid %d exited with 0", w->pid);
+		kill(0, SIGINT);
+		exit(1);
 	}
 }
 
@@ -165,6 +170,7 @@ int main(int argc, char **argv)
 	char *config = "config.ini";
 
 	WORKER_ID = getpid();
+	prb_set_log(NULL);
 
 	while (1) {
 		static struct option long_opts[] = {
@@ -207,6 +213,11 @@ int main(int argc, char **argv)
 
 	prb_load_config(config);
 	worker_len = prb_config.num_workers;
+	FILE *log_fd = NULL;
+	if (prb_config.log_file) {
+		log_fd = fopen(prb_config.log_file, "w");
+	}
+	prb_set_log(log_fd);
 
 	redisAsyncContext *c;
 	//redisReply *reply;
@@ -306,6 +317,7 @@ int main(int argc, char **argv)
 	pthread_mutex_destroy(&shm->busy_workers_lock);
 	munmap(shm, sizeof(*shm));
 	redisAsyncFree(c);
+	prb_free_config();
 	free(child);
 
 	return 0;

@@ -4,7 +4,7 @@
 #include "ini.h"
 #include "log.h"
 
-struct _prb_config prb_config;
+struct _prb_config prb_config = {0};
 
 static int handler(void *user, const char *section, const char *name,
 		const char *value)
@@ -27,6 +27,9 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "single_db")) {
 		prb_config.single_db = atoi(value);
 	}
+	else if (!strcmp(section, "general") && !strcmp(name, "log_file")) {
+		prb_config.log_file = strdup(value);
+	}
 	return 0;
 }
 
@@ -39,4 +42,9 @@ int prb_load_config(char *file)
 
 	PRB_DEBUG("config", "Config %s loaded", file);
 	return 0;
+}
+
+void prb_free_config()
+{
+	free(prb_config.log_file);
 }

@@ -9,10 +9,12 @@ struct _prb_config {
 	int write_timeout;
 	int ip2asn_ttl;
 	int single_db;
+	char *log_file;
 };
 
 extern struct _prb_config prb_config;
 
 int prb_load_config(char *file);
+void prb_free_config();
 
 #endif
