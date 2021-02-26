@@ -11,7 +11,7 @@
 #include "log.h"
 #include "socket.h"
 
-#define TIMEOUT 3
+#define TIMEOUT 15
 
 char err_buf[80];// TODO: use MAX_ERROR_SZ
 
@@ -155,7 +155,8 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Writing data to raw socket");
 			PRB_DEBUG("socket", "sock=%d, buf=%.4s, buf_addr=%p, count=%d", s->sock, buf, buf, count);
-			err = write(s->sock, buf, count);
+			//err = write(s->sock, buf, count);
+			err = send(s->sock, buf, count, MSG_NOSIGNAL);
 			if (err < 0) {
 				PRB_ERROR("socket", "Error writing to socket: %s", strerror(errno));
 				return -1;
