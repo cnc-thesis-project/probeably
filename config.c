@@ -30,6 +30,9 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "log_file")) {
 		prb_config.log_file = strdup(value);
 	}
+	else if (!strcmp(section, "general") && !strcmp(name, "monitor_rate")) {
+		prb_config.monitor_rate = atof(value);
+	}
 	return 0;
 }
 

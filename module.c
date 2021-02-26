@@ -8,6 +8,24 @@
 
 struct probeably prb;
 
+const char *worker_status_color[] = {
+	"",
+	"\x1b[41m",
+	"\x1b[42m",
+	"\x1b[43m",
+	"\x1b[44m",
+	"\x1b[45m",
+};
+
+const char *worker_status_name[] = {
+	"IDLE",
+	"BUSY",
+	"DB_WRITE",
+	"SOCKET_CON",
+	"SOCKET_WRITE",
+	"SOCKET_READ",
+};
+
 #define NUM_MODULES (int)(sizeof(modules) / sizeof(*modules))
 #define NUM_IP_MODULES (int)(sizeof(ip_modules) / sizeof(*ip_modules))
 
@@ -52,11 +70,11 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 		total += len;
 	}
-	prb_socket_shutdown(s);
+	//prb_socket_shutdown(s);
 
 	if (total <= 0) {
-		if (prb_socket_connect(s, r->ip, r->port) < 0)
-			return -1;
+		//if (prb_socket_connect(s, r->ip, r->port) < 0)
+		//	return -1;
 		// probably the client needs to initiate communication
 		PRB_DEBUG("module", "Server not initiating communication, sending test request");
 
@@ -73,8 +91,9 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 			total += len;
 		}
-		prb_socket_shutdown(s);
 	}
+
+	prb_socket_shutdown(s);
 
 	if (total <= 0) {
 		// no response at all, boring

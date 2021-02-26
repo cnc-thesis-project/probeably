@@ -16,25 +16,63 @@
 #include "log.h"
 #include "util.h"
 
-int WORKER_ID = 0;
+#define SHM_SIZE (sizeof(*shm) + sizeof(int) * worker_len)
 
+int WORKER_ID = 0;
+int WORKER_INDEX = 0;
+
+ev_timer timer;
 pid_t *child = 0;
 ev_child cw;
 int worker_len = 32;
 
-// things to put in shared memory
-struct shm_data
-{
-	int busy_workers;
-	pthread_mutex_t busy_workers_lock;
-} *shm;
+struct shm_data *shm;
 
+static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
+{
+	(void)loop;
+	(void)timer;
+	(void)revent;
+
+	// maybe there is no need to lock the mutex?
+	// it's just printing status and do not hurt if it occurs small error
+	pthread_mutex_lock(&shm->busy_workers_lock);
+
+	printf("\x1b[1JBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
+	printf("Works done in total: %zd\n", shm->works_done);
+
+	// print status color explanation
+	for (int i = 0; i < WORKER_STATUS_LEN; i++) {
+		printf("%s%s\x1b[0m ", worker_status_color[i], worker_status_name[i]);
+	}
+	printf("\n");
+
+	// print worker status visually
+	int width = 50;
+	for (int y = 0; y < worker_len; y += width) {
+		for (int x = 0; x < width && x + y < worker_len; x++) {
+			int status = shm->worker_status[x + y];
+			char working = (status != WORKER_STATUS_IDLE ? 'o' : '.');
+			printf("%s%c\x1b[0m", worker_status_color[status], working);
+		}
+		printf("\n");
+	}
+
+	pthread_mutex_unlock(&shm->busy_workers_lock);
+}
 
 static void update_worker_state(int start_work)
 {
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
-	shm->busy_workers += (start_work ? 1 : -1);
+	if (start_work) {
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+		shm->busy_workers++;
+	} else {
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_IDLE;
+		shm->works_done++;
+		shm->busy_workers--;
+	}
 	PRB_DEBUG("main", "Busy workers [%d/%d]", shm->busy_workers, worker_len);
 
 	pthread_mutex_unlock(&shm->busy_workers_lock);
@@ -221,7 +259,6 @@ int main(int argc, char **argv)
 	prb_set_log(log_fd);
 
 	redisAsyncContext *c;
-	//redisReply *reply;
 
 	prb_socket_init();
 	init_modules();
@@ -239,11 +276,12 @@ int main(int argc, char **argv)
 	}
 
 	// create shared memory
-	shm = mmap(NULL, sizeof(*shm), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	shm = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	if (!shm) {
 		PRB_ERROR("main", "Failed to create shared memroy");
 		exit(EXIT_FAILURE);
 	}
+	memset(shm, 0, SHM_SIZE);
 
 	// init mutex lock in shared memory
 	pthread_mutexattr_t mutexattr;
@@ -268,8 +306,9 @@ int main(int argc, char **argv)
 	child = malloc(sizeof(pid_t) * worker_len);
 
 	pid_t pid = 0;
-	int i = 0;
-	for (; i < worker_len; i++) {
+
+	for (int i = 0; i < worker_len; i++) {
+		WORKER_INDEX = i;
 		pid = fork();
 		if (pid == 0)
 			break;
@@ -283,6 +322,16 @@ int main(int argc, char **argv)
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
+
+		if (prb_config.monitor_rate) {
+			if (prb_config.log_file) {
+				// activate monitoring
+				ev_timer_init(&timer, monitor_callback, prb_config.monitor_rate, 1);
+				ev_timer_start(EV_DEFAULT, &timer);
+			} else {
+				PRB_ERROR("main", "'monitor_rate' must be used together with 'log_file'");
+			}
+		}
 	} else {
 		// child path
 
@@ -316,7 +365,7 @@ int main(int argc, char **argv)
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
 	pthread_mutex_destroy(&shm->busy_workers_lock);
-	munmap(shm, sizeof(*shm));
+	munmap(shm, SHM_SIZE);
 	redisAsyncFree(c);
 	prb_free_config();
 	free(child);

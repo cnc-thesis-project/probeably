@@ -10,6 +10,7 @@
 #include "config.h"
 #include "log.h"
 #include "socket.h"
+#include "module.h"
 
 #define TIMEOUT 15
 
@@ -74,9 +75,11 @@ static int connect_raw(struct prb_socket *s, const char *ip, int port)
 
 int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 {
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_SOCKET_CONNECT;
 	PRB_DEBUG("socket", "Initializing connection to %s:%d", ip, port);
 
 	if (connect_raw(s, ip, port) == -1) {
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 		return -1;
 	}
 
@@ -109,15 +112,18 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 			shutdown(s->sock, SHUT_RDWR);
 			close(s->sock);
 			if(connect_raw(s, ip, port) < 0) {
+				shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 				return -1;
 			}
 			s->type = PRB_SOCKET_RAW;
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			return 0;
 		}
 		s->type = PRB_SOCKET_SSL;
 		PRB_DEBUG("socket", "SSL handshake was successful");
 	}
 
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 	PRB_DEBUG("socket", "Connection was successful");
 	return 0;
 }
@@ -142,10 +148,14 @@ void prb_socket_shutdown(struct prb_socket *s)
 ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 {
 	int err;
+
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_SOCKET_WRITE;
+
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
 			PRB_DEBUG("socket", "Writing data to SSL socket");
 			err = wolfSSL_write(s->ssl, buf, (int) count);
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			if (err < 0) {
 				PRB_ERROR("socket", "Failed writing to SSL socket: %d: %s", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
@@ -154,9 +164,8 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 			return err;
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Writing data to raw socket");
-			PRB_DEBUG("socket", "sock=%d, buf=%.4s, buf_addr=%p, count=%d", s->sock, buf, buf, count);
-			//err = write(s->sock, buf, count);
 			err = send(s->sock, buf, count, MSG_NOSIGNAL);
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			if (err < 0) {
 				PRB_ERROR("socket", "Error writing to socket: %s", strerror(errno));
 				return -1;
@@ -164,6 +173,7 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 			PRB_DEBUG("socket", "Wrote %d bytes to raw socket", err);
 			return err;
 		default:
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			return -1;
 	}
 }
@@ -171,10 +181,14 @@ ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 {
 	int err;
+
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_SOCKET_READ;
+
 	switch(s->type) {
 		case PRB_SOCKET_SSL:
 			PRB_DEBUG("socket", "Reading data from SSL socket");
 			err = wolfSSL_recv(s->ssl, buf, (int) count, 0);
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			if (err < 0) {
 				PRB_ERROR("socket", "Failed reading from SSL socket: %d: %s", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
 				return -1;
@@ -184,6 +198,7 @@ ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count)
 		case PRB_SOCKET_RAW:
 			PRB_DEBUG("socket", "Reading data from raw socket");
 			err = read(s->sock, buf, count);
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 			if (err < 0) {
 				PRB_ERROR("socket", "Failed reading from raw socket: %s", strerror(errno));
 				return -1;

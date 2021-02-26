@@ -8,6 +8,20 @@
 #define PRB_MODULE_IS_APP_LAYER        (1 << 2)
 #define PRB_MODULE_SERVER_INITIATE     (1 << 3)
 
+// worker status
+
+#define WORKER_STATUS_IDLE            0
+#define WORKER_STATUS_BUSY            1
+#define WORKER_STATUS_DB_WRITE        2
+#define WORKER_STATUS_SOCKET_CONNECT  3
+#define WORKER_STATUS_SOCKET_WRITE    4
+#define WORKER_STATUS_SOCKET_READ     5
+#define WORKER_STATUS_LEN             6
+
+// worker status color
+extern const char *worker_status_color[];
+extern const char *worker_status_name[];
+
 struct prb_request {
 	char *ip;
 	int port;

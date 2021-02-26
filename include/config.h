@@ -10,6 +10,7 @@ struct _prb_config {
 	int ip2asn_ttl;
 	int single_db;
 	char *log_file;
+	float monitor_rate;
 };
 
 extern struct _prb_config prb_config;
