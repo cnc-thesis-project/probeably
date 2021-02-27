@@ -15,6 +15,7 @@ const char *worker_status_color[] = {
 	"\x1b[43m",
 	"\x1b[44m",
 	"\x1b[45m",
+	"\x1b[46m",
 };
 
 const char *worker_status_name[] = {
@@ -24,6 +25,7 @@ const char *worker_status_name[] = {
 	"SOCKET_CON",
 	"SOCKET_WRITE",
 	"SOCKET_READ",
+	"LOCK",
 };
 
 #define NUM_MODULES (int)(sizeof(modules) / sizeof(*modules))

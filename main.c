@@ -38,7 +38,7 @@ static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 	// it's just printing status and do not hurt if it occurs small error
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
-	printf("\x1b[1JBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
+	printf("\nBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
 	printf("Works done in total: %zd\n", shm->works_done);
 
 	// print status color explanation
@@ -52,7 +52,7 @@ static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 	for (int y = 0; y < worker_len; y += width) {
 		for (int x = 0; x < width && x + y < worker_len; x++) {
 			int status = shm->worker_status[x + y];
-			char working = (status != WORKER_STATUS_IDLE ? 'o' : '.');
+			char working = (status != WORKER_STATUS_IDLE ? '#' : '.');
 			printf("%s%c\x1b[0m", worker_status_color[status], working);
 		}
 		printf("\n");
@@ -63,6 +63,7 @@ static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 
 static void update_worker_state(int start_work)
 {
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
 	if (start_work) {
@@ -82,9 +83,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	PRB_DEBUG("main", "Running port callback");
 
-
 	redisReply *reply = r;
-
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
 	if (!reply || reply->elements < 2)
@@ -195,8 +194,8 @@ static void usage()
 
 	printf(
 			"usage: probeably [options]\n"
-			"  -h, --help        Print usage.\n"
-			"  -v, --version     Print version string.\n"
+			"  -h, --help		Print usage.\n"
+			"  -v, --version	 Print version string.\n"
 			"  -H, --redis-host  Redis host.\n"
 			"  -p, --redis-port  Redis port.\n"
 		  );
@@ -326,7 +325,7 @@ int main(int argc, char **argv)
 		if (prb_config.monitor_rate) {
 			if (prb_config.log_file) {
 				// activate monitoring
-				ev_timer_init(&timer, monitor_callback, prb_config.monitor_rate, 1);
+				ev_timer_init(&timer, monitor_callback, 0, prb_config.monitor_rate);
 				ev_timer_start(EV_DEFAULT, &timer);
 			} else {
 				PRB_ERROR("main", "'monitor_rate' must be used together with 'log_file'");
@@ -356,7 +355,7 @@ int main(int argc, char **argv)
 		redisLibevAttach(EV_DEFAULT_ c);
 		redisAsyncSetConnectCallback(c, connect_callback);
 		redisAsyncSetDisconnectCallback(c, disconnect_callback);
-		redisAsyncCommand(c, port_callback, prb.db, "BLPOP port 0");
+		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
 	}
 	ev_loop(EV_DEFAULT_ 0);
 
