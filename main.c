@@ -28,6 +28,7 @@ int worker_len = 32;
 
 struct shm_data *shm;
 
+redisContext *monitor_con = 0;
 static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 {
 	(void)loop;
@@ -38,10 +39,16 @@ static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 	// it's just printing status and do not hurt if it occurs small error
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
+	redisReply *reply = redisCommand(monitor_con, "LLEN port");
+	int work_in_queue = reply->integer;
+	freeReplyObject(reply);
+
 	printf("\nBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
 	printf("Works done in total: %zd\n", shm->works_done);
+	printf("Works in queue: %zd\n", work_in_queue);
 
 	// print status color explanation
+	printf("Status color: ", work_in_queue);
 	for (int i = 0; i < WORKER_STATUS_LEN; i++) {
 		printf("%s%s\x1b[0m ", worker_status_color[i], worker_status_name[i]);
 	}
@@ -308,6 +315,16 @@ int main(int argc, char **argv)
 	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
+		struct timeval timeout = {1, 500000};
+		monitor_con = redisConnectWithTimeout(hostname, port, timeout);
+
+		if (monitor_con->err) {
+			PRB_ERROR("main", "Redis connection error: %s", monitor_con->errstr);
+			redisFree(monitor_con);
+
+			exit(EXIT_FAILURE);
+		}
+
 		// parent path
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
@@ -365,7 +382,10 @@ int main(int argc, char **argv)
 	prb_socket_cleanup();
 	pthread_mutex_destroy(&shm->busy_workers_lock);
 	munmap(shm, SHM_SIZE);
-	redisAsyncFree(c);
+	if (c)
+		redisAsyncFree(c);
+	if (monitor_con)
+		redisFree(monitor_con);
 	prb_free_config();
 	free(child);
 
