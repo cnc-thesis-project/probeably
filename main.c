@@ -257,22 +257,12 @@ int main(int argc, char **argv)
 	}
 	prb_set_log(log_fd);
 
-	redisAsyncContext *c;
-
 	prb_socket_init();
 	init_modules();
 	init_ip_modules();
 
 	ev_signal signal_watcher;
 	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
-	c = redisAsyncConnect(hostname, port);
-
-	if (c->err) {
-		PRB_ERROR("main", "Redis connection error: %s", c->errstr);
-		redisAsyncFree(c);
-
-		exit(EXIT_FAILURE);
-	}
 
 	// create shared memory
 	shm = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -315,6 +305,7 @@ int main(int argc, char **argv)
 	}
 
 	WORKER_ID = getpid();
+	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
 		// parent path
@@ -351,6 +342,15 @@ int main(int argc, char **argv)
 
 		if (prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE;
+
+		c = redisAsyncConnect(hostname, port);
+
+		if (c->err) {
+			PRB_ERROR("main", "Redis connection error: %s", c->errstr);
+			redisAsyncFree(c);
+
+			exit(EXIT_FAILURE);
+		}
 
 		redisLibevAttach(EV_DEFAULT_ c);
 		redisAsyncSetConnectCallback(c, connect_callback);
