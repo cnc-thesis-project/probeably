@@ -40,15 +40,19 @@ static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
 	pthread_mutex_lock(&shm->busy_workers_lock);
 
 	redisReply *reply = redisCommand(monitor_con, "LLEN port");
-	int work_in_queue = reply->integer;
+	size_t works_in_queue = reply->integer;
 	freeReplyObject(reply);
 
+	static size_t prev_works_in_queue = 0;
+	static size_t prev_works_done = 0;
 	printf("\nBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
-	printf("Works done in total: %zd\n", shm->works_done);
-	printf("Works in queue: %zd\n", work_in_queue);
+	printf("Works done in total: %zd (%+zd)\n", shm->works_done, shm->works_done - prev_works_done);
+	printf("Works in queue: %zd (%+zd)\n", works_in_queue, works_in_queue - prev_works_in_queue);
+	prev_works_done = shm->works_done;
+	prev_works_in_queue = works_in_queue;
 
 	// print status color explanation
-	printf("Status color: ", work_in_queue);
+	printf("Status color: ");
 	for (int i = 0; i < WORKER_STATUS_LEN; i++) {
 		printf("%s%s\x1b[0m ", worker_status_color[i], worker_status_name[i]);
 	}
