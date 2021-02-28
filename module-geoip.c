@@ -7,7 +7,7 @@
 
 static const char *database_url = "https://iptoasn.com/data/ip2asn-v4-u32.tsv.gz";
 static const char *database_path = "./dataset/ip2asn-v4-u32.tsv.gz";
-static const char *database_tmp = "./dataset/ip2asn-v4-u32.tsv.gz.tmp";
+static const char *database_tmp = "/tmp/ip2asn-v4-u32.tsv.gz.tmp";
 
 struct geoip_table
 {
