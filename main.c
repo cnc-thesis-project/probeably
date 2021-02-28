@@ -301,9 +301,6 @@ int main(int argc, char **argv)
 		if (!prb.db)
 			return EXIT_FAILURE;
 
-		//TEST
-		exit(1);
-
 		if (prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE;
 
