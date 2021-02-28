@@ -367,6 +367,7 @@ int main(int argc, char **argv)
 		mkdir(db_dir, 0770);
 
 		// create symlink 'latest' pointing to the folder
+		remove("./db/latest");
 		symlink(strlen("./db/") + db_dir, "./db/latest");
 
 		// Create db file
