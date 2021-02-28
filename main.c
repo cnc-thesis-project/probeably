@@ -374,8 +374,12 @@ int main(int argc, char **argv)
 		if (!prb.db)
 			return EXIT_FAILURE;
 
-		if (prb_init_database(prb.db) == -1)
+		// for single db, only worker with index 0 initializes the db
+		// for multi db, everyone initializes the db
+		if ((!prb_config.single_db || WORKER_INDEX == 0) && prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE;
+		else
+			sleep(1); // give some time to initialize database table
 
 		c = redisAsyncConnect(hostname, port);
 
