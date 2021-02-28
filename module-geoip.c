@@ -7,6 +7,7 @@
 
 static const char *database_url = "https://iptoasn.com/data/ip2asn-v4-u32.tsv.gz";
 static const char *database_path = "./dataset/ip2asn-v4-u32.tsv.gz";
+static const char *database_tmp = "/tmp/ip2asn-v4-u32.tsv.gz.tmp";
 
 struct geoip_table
 {
@@ -180,8 +181,11 @@ static void geoip_module_init(struct probeably *p)
 
 	if (download) {
 		PRB_DEBUG("geoip", "Downloading ip2asn database from %s", database_url);
-		if (url_download(database_url, database_path) == -1)
+		if (url_download(database_url, database_tmp) == -1)
 			return; // TODO: return -1
+		PRB_DEBUG("geoip", "Succeeded to download ip2asn database");
+
+		rename(database_tmp, database_path);
 	} else {
 		PRB_DEBUG("geoip", "Using cached ip2asn database");
 	}
