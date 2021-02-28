@@ -176,7 +176,10 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 	(void) w;
 	(void) revents;
 	ev_break(loop, EVBREAK_ALL);
+	PRB_DEBUG("main", "Killing workers...");
 	kill(0, SIGINT);
+	PRB_DEBUG("main", "Exiting...");
+	exit(EXIT_SUCCESS);
 }
 
 static void child_callback(EV_P_ ev_child *w, int revents)
@@ -185,13 +188,14 @@ static void child_callback(EV_P_ ev_child *w, int revents)
 	ev_child_stop (EV_A_ w);
 	if (w->rstatus != 0) {
 		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting...", w->pid, w->rstatus);
-		// TODO: clean up shit
+		redisFree(monitor_con);
 		kill(0, SIGINT);
 		exit(EXIT_FAILURE);
 	} else {
 		PRB_ERROR("main", "Worker pid %d exited with 0", w->pid);
+		redisFree(monitor_con);
 		kill(0, SIGINT);
-		exit(1);
+		exit(EXIT_SUCCESS);
 	}
 }
 
