@@ -361,10 +361,13 @@ int main(int argc, char **argv)
 
 		// Create folder for the working db files
 		char db_dir[128];
-		snprintf(db_dir, sizeof(db_dir), "./db/%04d-%02d-%02d_%02d-%02d-%02d",
+		snprintf(db_dir, sizeof(db_dir), "./db/%04d-%02d-%02d_%02dh%02dm%02ds",
 				1900 + cur_tm->tm_year, cur_tm->tm_mon + 1, cur_tm->tm_mday,
 				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec);
 		mkdir(db_dir, 0770);
+
+		// create symlink 'latest' pointing to the folder
+		symlink(strlen("./db/") + db_dir, "./db/latest");
 
 		// Create db file
 		char db_name[128];
