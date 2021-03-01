@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 		symlink(strlen("./db/") + db_dir, "./db/latest");
 
 		// Create db file
-		char db_name[128];
+		char db_name[256];
 		snprintf(db_name, sizeof(db_name), "%s/%d.db", db_dir, id);
 
 		prb.db = prb_open_database(db_name);
