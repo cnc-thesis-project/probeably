@@ -356,17 +356,34 @@ int main(int argc, char **argv)
 			id = 0;
 		}
 
-		char db_name[128];
-		snprintf(db_name, sizeof(db_name), "db/%04d-%02d-%02d_%02d-%02d-%02d_%d.db",
+		// Make sure db folder exists
+		mkdir("./db", 0770);
+
+		// Create folder for the working db files
+		char db_dir[128];
+		snprintf(db_dir, sizeof(db_dir), "./db/%04d-%02d-%02d_%02dh%02dm%02ds",
 				1900 + cur_tm->tm_year, cur_tm->tm_mon + 1, cur_tm->tm_mday,
-				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec, id);
+				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec);
+		mkdir(db_dir, 0770);
+
+		// create symlink 'latest' pointing to the folder
+		remove("./db/latest");
+		symlink(strlen("./db/") + db_dir, "./db/latest");
+
+		// Create db file
+		char db_name[128];
+		snprintf(db_name, sizeof(db_name), "%s/%d.db", db_dir, id);
 
 		prb.db = prb_open_database(db_name);
 		if (!prb.db)
 			return EXIT_FAILURE;
 
-		if (prb_init_database(prb.db) == -1)
+		// for single db, only worker with index 0 initializes the db
+		// for multi db, everyone initializes the db
+		if ((!prb_config.single_db || WORKER_INDEX == 0) && prb_init_database(prb.db) == -1)
 			return EXIT_FAILURE;
+		else
+			sleep(1); // give some time to initialize database table
 
 		c = redisAsyncConnect(hostname, port);
 
