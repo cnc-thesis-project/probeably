@@ -193,7 +193,9 @@ static void child_callback(EV_P_ ev_child *w, int revents)
 		exit(EXIT_FAILURE);
 	} else {
 		PRB_ERROR("main", "Worker pid %d exited with 0", w->pid);
-		redisFree(monitor_con);
+		if (monitor_con) {
+			redisFree(monitor_con);
+		}
 		kill(0, SIGINT);
 		exit(EXIT_SUCCESS);
 	}
