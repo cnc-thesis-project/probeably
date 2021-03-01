@@ -30,7 +30,7 @@ static void http_module_cleanup(struct probeably *p)
 }
 
 static int http_send_request(	struct probeably *p, struct prb_request *r, struct prb_socket *sock,
-								const char *request, const char *type, int headers_only)
+								const char *request, const char *type, int headers_only, int store_fail)
 {
 	char *ip = r->ip;
 	int port = r->port;
@@ -110,16 +110,18 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 		result = -1;
 	}
 
-	prb_write_data(p, r, "http", type, http_buffer, total,
-			(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
+	if (store_fail || result >= 0) {
+		prb_write_data(p, r, "http", type, http_buffer, total,
+				(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
 
-	char type_buf[128];
-	char buf[128];
-	snprintf(type_buf, sizeof(type_buf), "%s_time", type);
-	snprintf(buf, sizeof(buf), "%f %f", response_start, response_end);
+		char type_buf[128];
+		char buf[128];
+		snprintf(type_buf, sizeof(type_buf), "%s_time", type);
+		snprintf(buf, sizeof(buf), "%f %f", response_start, response_end);
 
-	prb_write_data(p, r, "http", type_buf, buf, strlen(buf),
-			(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
+		prb_write_data(p, r, "http", type_buf, buf, strlen(buf),
+				(result == 0 ? PRB_DB_SUCCESS : 0) | (total == HTTP_BUFFER_SIZE - 1 ? PRB_DB_CROPPED : 0));
+	}
 
 	free(http_buffer);
 	prb_socket_shutdown(sock);
@@ -134,7 +136,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	// get root, if it fails it's not a HTTP protocol
 	snprintf(request_header, sizeof(request_header),
 			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	if (http_send_request(p, r, sock, request_header, "get_root", 0) == -1)
+	if (http_send_request(p, r, sock, request_header, "get_root", 0, 0) == -1)
 		return -1;
 
 	// the rest of the requests don't return if it fails
@@ -143,25 +145,25 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	// head root
 	snprintf(request_header, sizeof(request_header),
 			"HEAD / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "head_root", 1);
+	http_send_request(p, r, sock, request_header, "head_root", 1, 1);
 
 	// very simple get
-	http_send_request(p, r, sock, "GET / HTTP/1.1\r\n\r\n", "very_simple_get", 0);
+	http_send_request(p, r, sock, "GET / HTTP/1.1\r\n\r\n", "very_simple_get", 0, 1);
 
 	// get non existing file
 	snprintf(request_header, sizeof(request_header),
 			"GET /this_should_not_exist_bd8a3 HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "not_exist", 0);
+	http_send_request(p, r, sock, request_header, "not_exist", 0, 1);
 
 	// get root with invalid http version
 	snprintf(request_header, sizeof(request_header),
 			"GET / HTTP/1.999\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "invalid_version", 0);
+	http_send_request(p, r, sock, request_header, "invalid_version", 0, 1);
 
 	// get root with invalid protocol
 	snprintf(request_header, sizeof(request_header),
 			"GET / PTTH/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "invalid_protocol", 0);
+	http_send_request(p, r, sock, request_header, "invalid_protocol", 0, 1);
 
 	// get very long path (1000 characters)
 	char aaaaa[1001];
@@ -170,22 +172,22 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 
 	snprintf(request_header, sizeof(request_header),
 			"GET /%s HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", aaaaa, user_agent);
-	http_send_request(p, r, sock, request_header, "long_path", 0);
+	http_send_request(p, r, sock, request_header, "long_path", 0, 1);
 
 	// get favicon
 	snprintf(request_header, sizeof(request_header),
 			"GET /favicon.ico HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "get_favicon", 0);
+	http_send_request(p, r, sock, request_header, "get_favicon", 0, 1);
 
 	// get robots.txt
 	snprintf(request_header, sizeof(request_header),
 			"GET /robots.txt HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "get_robots", 0);
+	http_send_request(p, r, sock, request_header, "get_robots", 0, 1);
 
 	// delete root
 	snprintf(request_header, sizeof(request_header),
 			"DELETE / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	http_send_request(p, r, sock, request_header, "delete_root", 0);
+	http_send_request(p, r, sock, request_header, "delete_root", 0, 1);
 
 	return 0;
 }
