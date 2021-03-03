@@ -144,9 +144,9 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	// done with the work
 	if (port == 0)
-		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
-	else
 		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
+	else
+		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
 	update_worker_state(0);
 
 	free(values);
