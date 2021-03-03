@@ -280,6 +280,7 @@ int main(int argc, char **argv)
 
 	ev_signal signal_watcher;
 	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
+	signal(SIGPIPE, SIG_IGN);
 
 	// create shared memory
 	shm = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
