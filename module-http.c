@@ -60,7 +60,7 @@ static int http_send_request(	struct probeably *p, struct prb_request *r, struct
 
 		// measure time it took to get the first packet of response
 		if (response_start == 0.0f)
-			response_start = stop_timer(request_start);
+			response_end = response_start = stop_timer(request_start);
 
 		if (len <= 0)
 			break;
