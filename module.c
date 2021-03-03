@@ -67,7 +67,7 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 
 	char request_header[256];
 	snprintf(request_header, sizeof(request_header),
-			"HEAD / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
 	prb_socket_write(s, request_header, strlen(request_header));
 
 	size_t total = 0;
