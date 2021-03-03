@@ -33,21 +33,22 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 		return -1;
 	}
 	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
-	prb_socket_shutdown(s);
 	if (!cert) {
 		PRB_DEBUG("tls", "Failed grabbing peer certificate");
+		prb_socket_shutdown(s);
 		return -1;
 	}
 
 	int der_len = 0;
 	const unsigned char *der_cert = wolfSSL_X509_get_der(cert, &der_len);
-
-	prb_write_data(p, r, "tls", "certificate", der_cert, der_len, PRB_DB_SUCCESS);
+	prb_socket_shutdown(s);
 
 	if (!der_cert) {
 		PRB_DEBUG("tls", "Failed getting peer certificate in DER format");
 		return -1;
 	}
+
+	prb_write_data(p, r, "tls", "certificate", der_cert, der_len, PRB_DB_SUCCESS);
 
 	PRB_DEBUG("tls", "Running JARM");
 
