@@ -96,8 +96,10 @@ void run_modules(struct prb_request *r)
 
 	char response[1024];
 	int response_len = test_probe(r, &s, response, sizeof(response));
-	if (response_len < 0)
+	if (response_len < 0) {
+		prb_write_data(&prb, r, "port", "closed", 0, 0, 0);
 		return;
+	}
 
 	for (int i = 0; i < NUM_MODULES; i++) {
 		struct prb_module *mod = modules[i];
