@@ -1,0 +1,1 @@
+option('log_level', type : 'integer', min : 0, max : 2, value : 1)
