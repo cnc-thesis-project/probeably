@@ -16,8 +16,9 @@
 #define WORKER_STATUS_SOCKET_CONNECT  3
 #define WORKER_STATUS_SOCKET_WRITE    4
 #define WORKER_STATUS_SOCKET_READ     5
-#define WORKER_STATUS_LOCK            6
-#define WORKER_STATUS_LEN             7
+#define WORKER_STATUS_CON_WAIT        6
+#define WORKER_STATUS_LOCK            7
+#define WORKER_STATUS_LEN             8
 
 // worker status color
 extern const char *worker_status_color[];

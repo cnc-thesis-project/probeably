@@ -16,6 +16,7 @@ const char *worker_status_color[] = {
 	"\x1b[44m",
 	"\x1b[45m",
 	"\x1b[46m",
+	"\x1b[47m\x1b[30m",
 };
 
 const char *worker_status_name[] = {
@@ -25,6 +26,7 @@ const char *worker_status_name[] = {
 	"SOCKET_CON",
 	"SOCKET_WRITE",
 	"SOCKET_READ",
+	"CON_WAIT",
 	"LOCK",
 };
 

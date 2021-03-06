@@ -2,6 +2,7 @@
 #include <zlib.h>
 #include "module.h"
 #include "module-geoip.h"
+#include "util.h"
 #include "database.h"
 #include "config.h"
 
@@ -126,16 +127,6 @@ fail_free:
 	return 0;
 }
 
-static uint32_t ip_to_int(const char *ip)
-{
-	// convert ip address to unsigned integer
-	uint32_t addr = 0;
-	inet_pton(AF_INET, ip, &addr);
-
-	// return in reversed byte order
-	return (addr >> 24) | ((addr >> 8) & 0xff00) | ((addr << 8) & 0xff0000) | (addr << 24);
-}
-
 static struct geoip_table *find_geoip(const char *ip)
 {
 	// convert ip address to unsigned integer
@@ -147,7 +138,7 @@ static struct geoip_table *find_geoip(const char *ip)
 	int m = (r - l) / 2;
 	while (l <= r) {
 		if (geoip_map[m].ip_start <= addr && addr <= geoip_map[m].ip_end)
-		return &geoip_map[m];
+			return &geoip_map[m];
 
 		if (addr < geoip_map[m].ip_start)
 			r = m - 1; // move to left half

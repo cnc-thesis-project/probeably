@@ -16,7 +16,8 @@
 #include "log.h"
 #include "util.h"
 
-#define SHM_SIZE (sizeof(*shm) + sizeof(int) * worker_len)
+// size of shm struct + size of worker status array + size of currently processing ip array
+#define SHM_SIZE (sizeof(*shm) + sizeof(int) * worker_len + sizeof(struct ip_con) * worker_len)
 
 int WORKER_ID = 0;
 int WORKER_INDEX = 0;
@@ -90,6 +91,49 @@ static void update_worker_state(int start_work)
 	pthread_mutex_unlock(&shm->busy_workers_lock);
 }
 
+static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int delta)
+{
+	// convert ip address to unsigned integer
+	uint32_t addr = ip_to_int(ip);
+
+	// perform binary search to find the corresponding geoip table for an IP address
+	int l = 0;
+	int r = *size - 1;
+	int m = (r - l) / 2;
+	while (l <= r) {
+		if (ip_cons[m].addr == addr) {
+			// found ip in ip_con table
+			if (ip_cons[m].count + delta <= prb_config.con_limit && ip_cons[m].count + delta >= 0) {
+				ip_cons[m].count += delta;
+				if (ip_cons[m].count == 0) {
+					memmove(&ip_cons[m], &ip_cons[m+1], (*size - m - 1) * sizeof(struct ip_con));
+					(*size)--;
+				}
+				return 0;
+			} else {
+				return -1;
+			}
+		}
+
+		if (addr < ip_cons[m].addr)
+			r = m - 1; // move to left half
+		else
+			l = m + 1; // move to right half
+
+		m = l + (r - l) / 2;
+	}
+
+	if (delta < 0)
+		return -1; // should never happen...
+
+	memmove(&ip_cons[m+1], &ip_cons[m], (*size - m) * sizeof(struct ip_con));
+	ip_cons[m].count = delta;
+	ip_cons[m].addr = addr;
+	(*size)++;
+
+	return 0;
+}
+
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	PRB_DEBUG("main", "Running port callback");
@@ -127,8 +171,29 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
-	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
 	update_worker_state(1);
+
+	// make sure that not too many works with the same ip address
+	// but ip modules bypasses this since they don't talk with the server at all
+	if (port > 0) {
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
+		for (;;) {
+			pthread_mutex_lock(&shm->ip_cons_lock);
+			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, 1)) {
+				// too many connections, wait and check again
+				pthread_mutex_unlock(&shm->ip_cons_lock);
+				ev_sleep(1);
+				continue;
+			}
+
+			// allowed to connect to the server
+			pthread_mutex_unlock(&shm->ip_cons_lock);
+			break;
+		}
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+	}
+
+	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
 
 	struct prb_request req;
 	req.ip = ip;
@@ -147,6 +212,18 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
 	else
 		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
+
+	if (port > 0) {
+		// decrease the ip connection counter
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
+		pthread_mutex_lock(&shm->ip_cons_lock);
+
+		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
+
+		pthread_mutex_unlock(&shm->ip_cons_lock);
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+	}
+
 	update_worker_state(0);
 
 	free(values);
@@ -292,12 +369,20 @@ int main(int argc, char **argv)
 	}
 	memset(shm, 0, SHM_SIZE);
 
+	// point ip_cons to right place in the shared memory
+	shm->ip_cons = (void *)((size_t)shm + offsetof(struct shm_data, worker_status) + sizeof(int) * worker_len);
+
 	// init mutex lock in shared memory
 	pthread_mutexattr_t mutexattr;
 	pthread_mutexattr_init(&mutexattr);
 	pthread_mutexattr_setpshared(&mutexattr, PTHREAD_PROCESS_SHARED);
 
 	if (pthread_mutex_init(&shm->busy_workers_lock, &mutexattr))
+	{
+		PRB_ERROR("main", "Failed to initialize mutex lock");
+		exit(EXIT_FAILURE);
+	}
+	if (pthread_mutex_init(&shm->ip_cons_lock, &mutexattr))
 	{
 		PRB_ERROR("main", "Failed to initialize mutex lock");
 		exit(EXIT_FAILURE);

@@ -11,6 +11,7 @@ struct _prb_config {
 	int single_db;
 	char *log_file;
 	float monitor_rate;
+	int con_limit;
 };
 
 extern struct _prb_config prb_config;
