@@ -14,6 +14,10 @@ wolfssl_dep = dependency('wolfssl')
 
 inc = include_directories('include')
 
+log_level = get_option('log_level')
+
+install_data('config.ini')
+
 executable('probeably',
            'module-geoip.c',
            'module-rdns.c',
@@ -29,5 +33,9 @@ executable('probeably',
            'socket.c',
            'util.c',
            install : true,
+           c_args : [
+               '-DPRB_LOG_LEVEL=' + log_level.to_string(),
+               '-DPRB_VERSION="' + meson.project_version() + '"',
+           ],
            dependencies : [curl_dep, hiredis_dep, sqlite3_dep, thread_dep, m_dep, ev_dep, wolfssl_dep, zlib_dep],
            include_directories : inc)

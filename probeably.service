@@ -1,0 +1,9 @@
+[Unit]
+Description=The Probeably Prober
+
+[Service]
+ExecStart=/usr/local/bin/probeably --config /usr/local/etc/probeably/config.ini
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

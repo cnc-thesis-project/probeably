@@ -266,6 +266,8 @@ int main(int argc, char **argv)
 		}
 	}
 
+	PRB_INFO("main", "Starting probeably %s", PRB_VERSION);
+
 	prb_load_config(config);
 	worker_len = prb_config.num_workers;
 	FILE *log_fd = NULL;
