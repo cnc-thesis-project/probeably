@@ -40,18 +40,40 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 
 	if (ssh_module_check(ssh_buffer, read_len)) {
-		PRB_DEBUG("ssh", "Not an SSH protocol\n");
+		PRB_ERROR("ssh", "Not an SSH protocol");
 		prb_socket_shutdown(s);
 		return -1;
 	}
 
-	prb_write_data(p, r, "ssh", "string", ssh_buffer, read_len, PRB_DB_SUCCESS);
+	int string_len = 0;
+	for (int i = 0; i < read_len; i++) {
+		if (ssh_buffer[i] == '\r') {
+			ssh_buffer[i] = '\0';
+			string_len = i;
+		}
+	}
 
-	prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
-	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
+	prb_write_data(p, r, "ssh", "string", ssh_buffer, string_len, PRB_DB_SUCCESS);
+
+	// Check if we need to read again to get the ciphers list
+	char *ciphers;
+	int ciphers_len;
+	// + 2 for CR LF
+	if (string_len + 2 == read_len) {
+		PRB_DEBUG("ssh", "Reading ciphers");
+		prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
+		read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
+		ciphers = ssh_buffer;
+		ciphers_len = read_len;
+	} else {
+		ciphers = &ssh_buffer[string_len + 2];
+		ciphers_len = read_len - string_len - 2;
+		PRB_DEBUG("ssh", "Ciphers packet of size %d already received, presumably...", ciphers_len);
+	}
+
+	prb_write_data(p, r, "ssh", "ciphers", ciphers, ciphers_len, PRB_DB_SUCCESS);
 
 	prb_socket_shutdown(s);
-	prb_write_data(p, r, "ssh", "ciphers", ssh_buffer, read_len, PRB_DB_SUCCESS);
 	return 0;
 }
 
