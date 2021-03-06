@@ -33,11 +33,16 @@ static int handler(void *user, const char *section, const char *name,
 	else if (!strcmp(section, "general") && !strcmp(name, "monitor_rate")) {
 		prb_config.monitor_rate = atof(value);
 	}
+	else if (!strcmp(section, "general") && !strcmp(name, "con_limit")) {
+		prb_config.con_limit = atoi(value);
+	}
 	return 0;
 }
 
 int prb_load_config(char *file)
 {
+	prb_config.con_limit = 1;
+
 	if (ini_parse(file, handler, NULL) < 0) {
 		PRB_ERROR("config", "Failed to load config");
 		return -1;
