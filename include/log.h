@@ -20,7 +20,7 @@ extern FILE *prb_log_fd;
 #endif
 
 #if PRB_LOG_LEVEL < 2
-	#define PRB_INFO(LABEL, ...) do { print_hash_color(WORKER_ID); fprintf(prb_log_fd, "[%d-%s-info]\033[0m ", WORKER_ID, LABEL); fprintf(prb_log_fd, __VA_ARGS__); } while(0)
+	#define PRB_INFO(LABEL, ...) do { print_hash_color(WORKER_ID); fprintf(prb_log_fd, "[%d-%s-info]\033[0m ", WORKER_ID, LABEL); fprintf(prb_log_fd, __VA_ARGS__); fprintf(prb_log_fd, "\n"); } while(0)
 #else
 	#define PRB_INFO(LABEL, ...) ((void) 0)
 #endif
