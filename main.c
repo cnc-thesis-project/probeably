@@ -181,8 +181,8 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 			pthread_mutex_lock(&shm->ip_cons_lock);
 			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, 1)) {
 				// too many connections, wait and check again
+				pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
 				pthread_mutex_unlock(&shm->ip_cons_lock);
-				ev_sleep(1);
 				continue;
 			}
 
@@ -219,6 +219,8 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		pthread_mutex_lock(&shm->ip_cons_lock);
 
 		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
+		// wake up all workers that are waiting for their working ip to be available
+		pthread_cond_broadcast(&shm->ip_cons_cv);
 
 		pthread_mutex_unlock(&shm->ip_cons_lock);
 		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
@@ -388,6 +390,18 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	// init condition variable in shared memory
+	pthread_condattr_t cattr;
+	pthread_condattr_init(&cattr);
+	pthread_condattr_setpshared(&cattr, PTHREAD_PROCESS_SHARED);
+
+	if (pthread_cond_init(&shm->ip_cons_cv, &cattr))
+	{
+		PRB_ERROR("main", "Failed to initialize mutex lock");
+		exit(EXIT_FAILURE);
+	}
+
+
 	// get current date/time
 	time_t cur_time;
 	struct tm *cur_tm;
@@ -496,6 +510,8 @@ int main(int argc, char **argv)
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
 	pthread_mutex_destroy(&shm->busy_workers_lock);
+	pthread_mutex_destroy(&shm->ip_cons_lock);
+	pthread_cond_destroy(&shm->ip_cons_cv);
 	munmap(shm, SHM_SIZE);
 	if (c)
 		redisAsyncFree(c);
