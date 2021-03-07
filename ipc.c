@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <ev.h>
 #include "probeably.h"
+#include "config.h"
 #include "ipc.h"
 #include "module.h"
 
@@ -166,7 +167,7 @@ int ipc_init()
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "./probeably-ipc.sock");
+	snprintf(addr.sun_path, sizeof(addr.sun_path), prb_config.ipc_socket);
 	unlink(addr.sun_path);
 
 	if (bind(sd, (struct sockaddr*) &addr, sizeof(addr)) != 0) {

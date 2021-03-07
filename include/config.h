@@ -12,6 +12,7 @@ struct _prb_config {
 	char *log_file;
 	float monitor_rate;
 	int con_limit;
+	char *ipc_socket;
 };
 
 extern struct _prb_config prb_config;

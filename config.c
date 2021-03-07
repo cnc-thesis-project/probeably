@@ -12,26 +12,31 @@ static int handler(void *user, const char *section, const char *name,
 	(void)user;
 	PRB_DEBUG("config", "Getting key '%s' with value '%s' in section '%s'", name, value, section);
 
-	if (!strcmp(section, "general") && !strcmp(name, "num_workers")) {
-		prb_config.num_workers = atoi(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "read_timeout")) {
-		prb_config.read_timeout = atoi(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "write_timeout")) {
-		prb_config.write_timeout = atoi(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "ip2asn_ttl")) {
-		prb_config.ip2asn_ttl = atoi(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "single_db")) {
-		prb_config.single_db = atoi(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "log_file")) {
-		prb_config.log_file = strdup(value);
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "monitor_rate")) {
-		prb_config.monitor_rate = atof(value);
+	if (!strcmp(section, "general")) {
+		if (!strcmp(name, "num_workers")) {
+			prb_config.num_workers = atoi(value);
+		}
+		else if (!strcmp(name, "read_timeout")) {
+			prb_config.read_timeout = atoi(value);
+		}
+		else if (!strcmp(name, "write_timeout")) {
+			prb_config.write_timeout = atoi(value);
+		}
+		else if (!strcmp(name, "ip2asn_ttl")) {
+			prb_config.ip2asn_ttl = atoi(value);
+		}
+		else if (!strcmp(name, "single_db")) {
+			prb_config.single_db = atoi(value);
+		}
+		else if (!strcmp(name, "log_file")) {
+			prb_config.log_file = strdup(value);
+		}
+		else if (!strcmp(name, "monitor_rate")) {
+			prb_config.monitor_rate = atof(value);
+		}
+		else if (!strcmp(name, "ipc_socket")) {
+			prb_config.ipc_socket = strdup(value);
+		}
 	}
 	else if (!strcmp(section, "general") && !strcmp(name, "con_limit")) {
 		prb_config.con_limit = atoi(value);
