@@ -175,7 +175,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	// make sure that not too many works with the same ip address
 	// but ip modules bypasses this since they don't talk with the server at all
-	if (port > 0) {
+	if (port > 0 && prb_config.con_limit > 0) {
 		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
 		for (;;) {
 			pthread_mutex_lock(&shm->ip_cons_lock);
@@ -213,7 +213,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	else
 		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
 
-	if (port > 0) {
+	if (port > 0 && prb_config.con_limit > 0) {
 		// decrease the ip connection counter
 		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
 		pthread_mutex_lock(&shm->ip_cons_lock);
