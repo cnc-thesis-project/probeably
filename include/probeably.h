@@ -29,6 +29,8 @@ struct shm_data
 	struct ip_con *ip_cons;
 	int ip_cons_count;
 	pthread_mutex_t ip_cons_lock;
+	pthread_cond_t ip_cons_cv;
+
 	int worker_status[];
 };
 extern struct shm_data *shm;
