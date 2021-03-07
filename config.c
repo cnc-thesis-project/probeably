@@ -41,8 +41,6 @@ static int handler(void *user, const char *section, const char *name,
 
 int prb_load_config(char *file)
 {
-	prb_config.con_limit = 1;
-
 	if (ini_parse(file, handler, NULL) < 0) {
 		PRB_ERROR("config", "Failed to load config");
 		return -1;
