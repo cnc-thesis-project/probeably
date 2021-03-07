@@ -193,7 +193,8 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 }
 
 struct prb_module module_http = {
-	.flags = PRB_MODULE_IS_APP_LAYER,
+	.flags = PRB_MODULE_IS_APP_LAYER
+		| PRB_MODULE_REQUIRES_TEST_RESPONSE,
 	.name = "http",
 	.init = http_module_init,
 	.cleanup = http_module_cleanup,

@@ -80,7 +80,7 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 struct prb_module module_ssh = {
 	.flags = PRB_MODULE_REQUIRES_RAW_SOCKET
 		| PRB_MODULE_IS_APP_LAYER
-		| PRB_MODULE_SERVER_INITIATE,
+		| PRB_MODULE_REQUIRES_TEST_RESPONSE,
 	.name = "ssh",
 	.init = ssh_module_init,
 	.cleanup = ssh_module_cleanup,

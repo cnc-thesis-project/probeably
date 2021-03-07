@@ -3,10 +3,10 @@
 #include "probeably.h"
 #include "socket.h"
 
-#define PRB_MODULE_REQUIRES_RAW_SOCKET (1 << 0)
-#define PRB_MODULE_REQUIRES_SSL_SOCKET (1 << 1)
-#define PRB_MODULE_IS_APP_LAYER        (1 << 2)
-#define PRB_MODULE_SERVER_INITIATE     (1 << 3)
+#define PRB_MODULE_REQUIRES_RAW_SOCKET    (1 << 0)
+#define PRB_MODULE_REQUIRES_SSL_SOCKET    (1 << 1)
+#define PRB_MODULE_IS_APP_LAYER           (1 << 2)
+#define PRB_MODULE_REQUIRES_TEST_RESPONSE (1 << 3)
 
 // worker status
 

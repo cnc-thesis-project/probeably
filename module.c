@@ -128,8 +128,8 @@ void run_modules(struct prb_request *r)
 		}
 
 		// if response length is 0, skip the module if it expects the server to initiate the communication
-		if (response_len == 0 && mod->flags & PRB_MODULE_SERVER_INITIATE) {
-			PRB_DEBUG("module", "Module '%s' expects the server to initiate the communication, skipping", mod->name);
+		if (response_len == 0 && mod->flags & PRB_MODULE_REQUIRES_TEST_RESPONSE) {
+			PRB_DEBUG("module", "Module '%s' expects response from test probing, skipping", mod->name);
 			continue;
 		}
 
