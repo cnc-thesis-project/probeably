@@ -385,7 +385,11 @@ int main(int argc, char **argv)
 
 	if (pid != 0) {
 		// Init IPC socket
-		ipc_init();
+		if (ipc_init() < 0) {
+			PRB_ERROR("main", "IPC initialization failed. Exiting...");
+			// TODO: clean
+			exit(EXIT_FAILURE);
+		}
 
 		struct timeval timeout = {1, 500000};
 		monitor_con = redisConnectWithTimeout(hostname, port, timeout);
