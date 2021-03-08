@@ -21,6 +21,6 @@ uint32_t ip_to_int(const char *ip)
 	inet_pton(AF_INET, ip, &addr);
 
 	// return in reversed byte order
-	return (addr >> 24) | ((addr >> 8) & 0xff00) | ((addr << 8) & 0xff0000) | (addr << 24);
+	return addr;
 }
 
