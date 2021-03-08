@@ -17,14 +17,17 @@ static char ipc_buffer[IPC_BUFFER_SIZE];
 static struct ev_io w_accept;
 
 static void ipc_command_monitor();
+static void ipc_command_ip();
 
 #define NUM_COMMANDS 1
-static char ipc_command_names[] = {
+static char *ipc_command_names[] = {
 	"monitor",
+	"ip",
 };
 
 static void(*ipc_commands[])(int) = {
 	ipc_command_monitor,
+	ipc_command_ip,
 };
 
 static int ipc_run_command(char *name, int sd)
@@ -68,6 +71,7 @@ static void ipc_read_callback(struct ev_loop *loop, struct ev_io *watcher, int r
 
 	if (ipc_run_command(ipc_buffer, watcher->fd) < 0) {
 		PRB_ERROR("ipc", "Failed running command '%s'", ipc_buffer);
+		send(watcher->fd, "Error: Unknown command\n", strlen("Error: Unknown command\n"), 0);
 	} else {
 		PRB_INFO("ipc", "Command '%s' executed successfully", ipc_buffer);
 	}
@@ -156,6 +160,24 @@ static void ipc_command_monitor(int sd)
 	free(send_buffer);
 }
 
+static void ipc_command_ip(int sd)
+{
+	PRB_DEBUG("ipc", "Running ip command");
+
+	// maybe there is no need to lock the mutex?
+	pthread_mutex_lock(&shm->ip_cons_lock);
+
+	char buffer[256];
+	char ip_str[256];
+	for (int i = 0; i < shm->ip_cons_count; i++) {
+		inet_ntop(AF_INET, &shm->ip_cons[i].addr, ip_str, sizeof(ip_str));
+		snprintf(buffer, sizeof(buffer), "IP: %s (%d workers)\n", ip_str, shm->ip_cons[i].count);
+		send(sd, buffer, strlen(buffer), 0);
+	}
+
+	pthread_mutex_unlock(&shm->ip_cons_lock);
+}
+
 int ipc_init()
 {
 	PRB_DEBUG("ipc", "Initializing IPC...");
@@ -169,7 +191,7 @@ int ipc_init()
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", prb_config.ipc_socket);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), prb_config.ipc_socket);
 	unlink(addr.sun_path);
 
 	if (bind(sd, (struct sockaddr*) &addr, sizeof(addr)) != 0) {
