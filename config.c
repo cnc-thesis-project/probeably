@@ -37,9 +37,9 @@ static int handler(void *user, const char *section, const char *name,
 		else if (!strcmp(name, "ipc_socket")) {
 			prb_config.ipc_socket = strdup(value);
 		}
-	}
-	else if (!strcmp(section, "general") && !strcmp(name, "con_limit")) {
-		prb_config.con_limit = atoi(value);
+		else if (!strcmp(name, "con_limit")) {
+			prb_config.con_limit = atoi(value);
+		}
 	}
 	return 0;
 }
