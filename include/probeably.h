@@ -5,6 +5,7 @@
 #include <sqlite3.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <hiredis/hiredis.h>
 #include "log.h"
 
 #ifndef PRB_VERSION
@@ -34,6 +35,8 @@ struct shm_data
 	int worker_status[];
 };
 extern struct shm_data *shm;
+extern redisContext *monitor_con;
+extern int worker_len;
 
 struct probeably {
 	sqlite3 *db;

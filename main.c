@@ -14,6 +14,7 @@
 #include "socket.h"
 #include "database.h"
 #include "log.h"
+#include "ipc.h"
 #include "util.h"
 
 // size of shm struct + size of worker status array + size of currently processing ip array
@@ -30,48 +31,6 @@ int worker_len = 32;
 struct shm_data *shm;
 
 redisContext *monitor_con = 0;
-static void monitor_callback(struct ev_loop *loop, ev_timer *timer, int revent)
-{
-	(void)loop;
-	(void)timer;
-	(void)revent;
-
-	// maybe there is no need to lock the mutex?
-	// it's just printing status and do not hurt if it occurs small error
-	pthread_mutex_lock(&shm->busy_workers_lock);
-
-	redisReply *reply = redisCommand(monitor_con, "LLEN port");
-	size_t works_in_queue = reply->integer;
-	freeReplyObject(reply);
-
-	static size_t prev_works_in_queue = 0;
-	static size_t prev_works_done = 0;
-	printf("\nBusy workers [%d/%d]\n", shm->busy_workers, worker_len);
-	printf("Works done in total: %zd (%+zd)\n", shm->works_done, shm->works_done - prev_works_done);
-	printf("Works in queue: %zd (%+zd)\n", works_in_queue, works_in_queue - prev_works_in_queue);
-	prev_works_done = shm->works_done;
-	prev_works_in_queue = works_in_queue;
-
-	// print status color explanation
-	printf("Status color: ");
-	for (int i = 0; i < WORKER_STATUS_LEN; i++) {
-		printf("%s%s\x1b[0m ", worker_status_color[i], worker_status_name[i]);
-	}
-	printf("\n");
-
-	// print worker status visually
-	int width = 50;
-	for (int y = 0; y < worker_len; y += width) {
-		for (int x = 0; x < width && x + y < worker_len; x++) {
-			int status = shm->worker_status[x + y];
-			char working = (status != WORKER_STATUS_IDLE ? '#' : '.');
-			printf("%s%c\x1b[0m", worker_status_color[status], working);
-		}
-		printf("\n");
-	}
-
-	pthread_mutex_unlock(&shm->busy_workers_lock);
-}
 
 static void update_worker_state(int start_work)
 {
@@ -86,7 +45,6 @@ static void update_worker_state(int start_work)
 		shm->works_done++;
 		shm->busy_workers--;
 	}
-	PRB_DEBUG("main", "Busy workers [%d/%d]", shm->busy_workers, worker_len);
 
 	pthread_mutex_unlock(&shm->busy_workers_lock);
 }
@@ -233,12 +191,11 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 static void connect_callback(const redisAsyncContext *c, int status)
 {
-	PRB_DEBUG("main", "Connecting ( ^ 3^)");
 	if (status != REDIS_OK) {
 		PRB_ERROR("main", "Failed to connect ( ╥ _╥): %s", c->errstr);
 		exit(EXIT_FAILURE);
 	}
-	PRB_DEBUG("main", "Connected! ( ^ .^)");
+	PRB_DEBUG("main", "Connected! ( ^ 3^)");
 }
 
 static void disconnect_callback(const redisAsyncContext *c, int status)
@@ -427,6 +384,13 @@ int main(int argc, char **argv)
 	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
+		// Init IPC socket
+		if (ipc_init() < 0) {
+			PRB_ERROR("main", "IPC initialization failed. Exiting...");
+			// TODO: clean
+			exit(EXIT_FAILURE);
+		}
+
 		struct timeval timeout = {1, 500000};
 		monitor_con = redisConnectWithTimeout(hostname, port, timeout);
 
@@ -441,16 +405,6 @@ int main(int argc, char **argv)
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
-
-		if (prb_config.monitor_rate) {
-			if (prb_config.log_file) {
-				// activate monitoring
-				ev_timer_init(&timer, monitor_callback, 0, prb_config.monitor_rate);
-				ev_timer_start(EV_DEFAULT, &timer);
-			} else {
-				PRB_ERROR("main", "'monitor_rate' must be used together with 'log_file'");
-			}
-		}
 	} else {
 		// child path
 
@@ -503,6 +457,7 @@ int main(int argc, char **argv)
 		redisAsyncSetDisconnectCallback(c, disconnect_callback);
 		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
 	}
+
 	ev_loop(EV_DEFAULT_ 0);
 
 	cleanup_modules();
