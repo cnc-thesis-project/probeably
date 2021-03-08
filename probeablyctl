@@ -1,7 +1,7 @@
 #!/bin/sh
 prb_socket=/var/run/probeably/probeably.sock
 
-function send_command() {
+send_command() {
 	if [ "$1" != "monitor" ]
 	then
 		echo "Error: Unknown command '$1'"
@@ -10,7 +10,7 @@ function send_command() {
 	echo "$1" | nc -U "$prb_socket"
 }
 
-function print_help() {
+print_help() {
 	echo "Usage: probeablyctl [options] [command]"
 	echo "  -h           Print this help."
 	echo "  -s <socket>  Path to probeably socket."
@@ -22,10 +22,10 @@ for arg in $@
 do
 	if [ -z "$flag" ]
 	then
-		[ "$arg" == "-h" ] && print_help && exit
-		[ "$arg" == "-s" ] && flag="-s"
+		[ "$arg" = "-h" ] && print_help && exit
+		[ "$arg" = "-s" ] && flag="-s"
 	else
-		[ "$flag" == "-s" ] && prb_socket="$arg" && flag=
+		[ "$flag" = "-s" ] && prb_socket="$arg" && flag=
 	fi
 	cmd="$arg"
 done
