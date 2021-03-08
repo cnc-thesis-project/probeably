@@ -18,6 +18,7 @@ static struct ev_io w_accept;
 
 static void ipc_command_monitor();
 
+#define NUM_COMMANDS 1
 static char ipc_command_names[] = {
 	"monitor",
 };
@@ -28,12 +29,13 @@ static void(*ipc_commands[])(int) = {
 
 static int ipc_run_command(char *name, int sd)
 {
-	for (size_t i = 0; i < sizeof(ipc_command_names); i++) {
+	for (size_t i = 0; i < NUM_COMMANDS; i++) {
 		if (!strcmp(&ipc_command_names[i], name)) {
 			ipc_commands[i](sd);
 			return 0;
 		}
 	}
+
 
 	return -1;
 }
