@@ -130,7 +130,7 @@ fail_free:
 static struct geoip_table *find_geoip(const char *ip)
 {
 	// convert ip address to unsigned integer
-	uint32_t addr = ip_to_int(ip);
+	uint32_t addr = REV_4BYTE(ip_to_int(ip));
 
 	// perform binary search to find the corresponding geoip table for an IP address
 	int l = 0;
