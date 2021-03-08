@@ -19,7 +19,6 @@ static struct ev_io w_accept;
 static void ipc_command_monitor();
 static void ipc_command_ip();
 
-#define NUM_COMMANDS 2
 static char *ipc_command_names[] = {
 	"monitor",
 	"ip",
@@ -32,7 +31,7 @@ static void(*ipc_commands[])(int) = {
 
 static int ipc_run_command(char *name, int sd)
 {
-	for (size_t i = 0; i < NUM_COMMANDS; i++) {
+	for (size_t i = 0; i < sizeof(ipc_command_names) / sizeof(*ipc_command_names); i++) {
 		if (!strcmp(ipc_command_names[i], name)) {
 			ipc_commands[i](sd);
 			return 0;
@@ -191,7 +190,7 @@ int ipc_init()
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", prb_config.ipc_socket);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), prb_config.ipc_socket);
 	unlink(addr.sun_path);
 
 	if (bind(sd, (struct sockaddr*) &addr, sizeof(addr)) != 0) {
