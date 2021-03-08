@@ -2,11 +2,6 @@
 prb_socket=/var/run/probeably/probeably.sock
 
 send_command() {
-	if [ "$1" != "monitor" ]
-	then
-		echo "Error: Unknown command '$1'"
-	fi
-
 	echo "$1" | nc -U "$prb_socket"
 }
 
