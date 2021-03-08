@@ -61,7 +61,8 @@ static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int 
 	while (l <= r) {
 		if (ip_cons[m].addr == addr) {
 			// found ip in ip_con table
-			if (ip_cons[m].count + delta <= prb_config.con_limit && ip_cons[m].count + delta >= 0) {
+			if ((ip_cons[m].count + delta <= prb_config.con_limit && ip_cons[m].count + delta >= 0)
+					|| prb_config.con_limit <= 0) {
 				ip_cons[m].count += delta;
 				if (ip_cons[m].count == 0) {
 					memmove(&ip_cons[m], &ip_cons[m+1], (*size - m - 1) * sizeof(struct ip_con));
@@ -83,6 +84,9 @@ static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int 
 
 	if (delta < 0)
 		return -1; // should never happen...
+
+	// ip not found in table, add it
+	// m has the index that the addr should have, so just insert there and it's sorted
 
 	memmove(&ip_cons[m+1], &ip_cons[m], (*size - m) * sizeof(struct ip_con));
 	ip_cons[m].count = delta;
@@ -133,7 +137,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	// make sure that not too many works with the same ip address
 	// but ip modules bypasses this since they don't talk with the server at all
-	if (port > 0 && prb_config.con_limit > 0) {
+	if (port > 0) {
 		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
 		for (;;) {
 			pthread_mutex_lock(&shm->ip_cons_lock);
@@ -171,7 +175,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	else
 		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
 
-	if (port > 0 && prb_config.con_limit > 0) {
+	if (port > 0) {
 		// decrease the ip connection counter
 		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
 		pthread_mutex_lock(&shm->ip_cons_lock);
