@@ -11,6 +11,21 @@ static char ssh_buffer[SSH_BUFFER_SIZE];
 
 #define SSH_BANNER "SSH-2.0-OpenSSH_7.9 FreeBSD-20200214\r\n"
 
+static const char key_exchange[48] =
+	// ssh packet length
+	"\x00\x00\x00\x2c"
+	// ssh padding length
+	"\x06"
+	// key exchange method something
+	"\x1e"
+	// size of something (random number?)
+	"\x00\x00\x00\x20"
+	// 32 bytes random number? (made in /dev/random)
+	"\x8e\xd4\xc3\x70\xe6\x97\x61\x78\x8b\xfe\xcf\x7f\xa3\xf2\xe4\x54"
+	"\xd7\x7a\xaf\x3b\x87\x22\x92\x66\xd6\xc4\x6a\xe2\xca\x5a\x77\x81"
+	// padding
+	"\x00\x00\x00\x00\x00\x00";
+
 static int ssh_module_check(const char *response, int len)
 {
 	(void) len;
@@ -73,7 +88,16 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	prb_write_data(p, r, "ssh", "ciphers", ciphers, ciphers_len, PRB_DB_SUCCESS);
 
+	// resend servers cipher list
+	prb_socket_write(s, ciphers, ciphers_len);
+
+	// key exchange, pretty useless but necessary to get public key from the server
+	prb_socket_write(s, key_exchange, sizeof(key_exchange));
+	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 	prb_socket_shutdown(s);
+
+	prb_write_data(p, r, "ssh", "keys", ssh_buffer, read_len, PRB_DB_SUCCESS);
+
 	return 0;
 }
 
