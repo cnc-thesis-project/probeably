@@ -190,7 +190,7 @@ int ipc_init()
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), prb_config.ipc_socket);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", prb_config.ipc_socket);
 	unlink(addr.sun_path);
 
 	if (bind(sd, (struct sockaddr*) &addr, sizeof(addr)) != 0) {
