@@ -389,6 +389,11 @@ int main(int argc, char **argv)
 	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
+		// parent path
+		ev_child_init(&cw, child_callback, pid, 0);
+		ev_child_start(EV_DEFAULT_ &cw);
+		ev_signal_start(EV_DEFAULT, &signal_watcher);
+
 		// Init IPC socket
 		if (ipc_init() < 0) {
 			PRB_ERROR("main", "IPC initialization failed. Exiting...");
@@ -405,11 +410,6 @@ int main(int argc, char **argv)
 
 			exit(EXIT_FAILURE);
 		}
-
-		// parent path
-		ev_child_init(&cw, child_callback, pid, 0);
-		ev_child_start(EV_DEFAULT_ &cw);
-		ev_signal_start(EV_DEFAULT, &signal_watcher);
 	} else {
 		// child path
 
