@@ -19,7 +19,7 @@ static struct ev_io w_accept;
 static void ipc_command_monitor();
 static void ipc_command_ip();
 
-#define NUM_COMMANDS 1
+#define NUM_COMMANDS 2
 static char *ipc_command_names[] = {
 	"monitor",
 	"ip",
@@ -33,7 +33,7 @@ static void(*ipc_commands[])(int) = {
 static int ipc_run_command(char *name, int sd)
 {
 	for (size_t i = 0; i < NUM_COMMANDS; i++) {
-		if (!strcmp(&ipc_command_names[i], name)) {
+		if (!strcmp(ipc_command_names[i], name)) {
 			ipc_commands[i](sd);
 			return 0;
 		}
@@ -168,7 +168,7 @@ static void ipc_command_ip(int sd)
 	pthread_mutex_lock(&shm->ip_cons_lock);
 
 	char buffer[256];
-	char ip_str[256];
+	char ip_str[128];
 	for (int i = 0; i < shm->ip_cons_count; i++) {
 		inet_ntop(AF_INET, &shm->ip_cons[i].addr, ip_str, sizeof(ip_str));
 		snprintf(buffer, sizeof(buffer), "IP: %s (%d workers)\n", ip_str, shm->ip_cons[i].count);
