@@ -4,6 +4,7 @@
 #include "module-geoip.h"
 #include "module-rdns.h"
 #include "module-tls.h"
+#include "module-telnet.h"
 #include "database.h"
 
 struct probeably prb;
@@ -37,6 +38,9 @@ struct prb_module *modules[] = {
 	&module_tls,
 	&module_http,
 	&module_ssh,
+
+	// This module must be placed last, since it always passes the protocol check.
+	&module_telnet,
 };
 
 struct prb_module *ip_modules[] = {
@@ -148,13 +152,6 @@ void run_modules(struct prb_request *r)
 			app_layer_found = 1;
 			mod_name = mod->name;
 		}
-	}
-
-	if (!mod_name) {
-		mod_name = "unknown";
-
-		// save the test probe response
-		prb_write_data(&prb, r, mod_name, "response", response, response_len, PRB_DB_SUCCESS);
 	}
 
 	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
