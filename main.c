@@ -8,6 +8,7 @@
 #include <hiredis/adapters/libev.h>
 #include <sys/mman.h>
 #include <getopt.h>
+#include <stddef.h>
 #include "config.h"
 #include "probeably.h"
 #include "module.h"
