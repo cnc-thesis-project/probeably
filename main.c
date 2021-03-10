@@ -252,8 +252,8 @@ static void usage()
 
 	printf(
 			"usage: probeably [options]\n"
-			"  -h, --help		Print usage.\n"
-			"  -v, --version	 Print version string.\n"
+			"  -h, --help        Print usage.\n"
+			"  -v, --version     Print version string.\n"
 			"  -H, --redis-host  Redis host.\n"
 			"  -p, --redis-port  Redis port.\n"
 		  );
