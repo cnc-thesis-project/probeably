@@ -136,8 +136,7 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	// get root, if it fails it's not a HTTP protocol
 	snprintf(request_header, sizeof(request_header),
 			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	if (http_send_request(p, r, sock, request_header, "get_root", 0, 0) == -1)
-		return -1;
+	http_send_request(p, r, sock, request_header, "get_root", 0, 0);
 
 	// the rest of the requests don't return if it fails
 	// because we already know that it worked for GET request
