@@ -44,7 +44,7 @@ static int handler(void *user, const char *section, const char *name,
 			prb_config.db_dir = strdup(value);
 		}
 		else if (!strcmp(name, "geoip_path")) {
-			prb_config.db_dir = strdup(value);
+			prb_config.geoip_path = strdup(value);
 		}
 		else if (!strcmp(name, "redis_host")) {
 			prb_config.redis_host = strdup(value);
