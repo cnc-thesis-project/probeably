@@ -1,0 +1,20 @@
+#!/bin/sh
+
+REMOTE_PROB_DIR=/tmp/probeably
+script_path="$(readlink -f "$0")"
+prob_dir="$(dirname $script_path)"
+print_help() {
+	echo "usage: deploy [ssh host]"
+}
+
+[ -z "$1" ] && (print_help; exit 1)
+
+ssh "$1" "mkdir $REMOTE_PROB_DIR"
+rsync -r $prob_dir/* "$1:$REMOTE_PROB_DIR"
+ssh "$1" "cd $REMOTE_PROB_DIR; \
+	rm -rf build; \
+	meson build; \
+	ninja -C build; \
+	cd build; \
+	meson install; \
+	systemctl restart probeably;"
