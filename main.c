@@ -409,7 +409,7 @@ int main(int argc, char **argv)
 		}
 
 		// Make sure db folder exists
-		mkdir("./db", 0770);
+		mkdir(prb_config.db_dir, 0770);
 
 		// Create folder for the working db files
 		char db_dir[128];
@@ -420,8 +420,10 @@ int main(int argc, char **argv)
 		mkdir(db_dir, 0770);
 
 		// create symlink 'latest' pointing to the folder
-		remove("./db/latest");
-		symlink(strlen("./db/") + db_dir, "./db/latest");
+		char db_latest[128];
+		snprintf(db_latest, sizeof(db_latest), "%s/latest", prb_config.db_dir);
+		remove(db_latest);
+		symlink(db_dir, db_latest);
 
 		// Create db file
 		char db_name[256];
