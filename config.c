@@ -43,6 +43,12 @@ static int handler(void *user, const char *section, const char *name,
 		else if (!strcmp(name, "db_dir")) {
 			prb_config.db_dir = strdup(value);
 		}
+		else if (!strcmp(name, "redis_host")) {
+			prb_config.redis_host = strdup(value);
+		}
+		else if (!strcmp(name, "redis_port")) {
+			prb_config.redis_port = atoi(value);
+		}
 	}
 	return 0;
 }

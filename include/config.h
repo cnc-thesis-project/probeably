@@ -14,6 +14,8 @@ struct _prb_config {
 	int con_limit;
 	char *ipc_socket;
 	char *db_dir;
+	char *redis_host;
+	int redis_port;
 };
 
 extern struct _prb_config prb_config;

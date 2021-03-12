@@ -254,15 +254,11 @@ static void usage()
 			"usage: probeably [options]\n"
 			"  -h, --help        Print usage.\n"
 			"  -v, --version     Print version string.\n"
-			"  -H, --redis-host  Redis host.\n"
-			"  -p, --redis-port  Redis port.\n"
 		  );
 }
 
 int main(int argc, char **argv)
 {
-	const char *hostname = "127.0.0.1";
-	int port = 6379;
 	char *config = "config.ini";
 
 	WORKER_ID = getpid();
@@ -273,8 +269,6 @@ int main(int argc, char **argv)
 			{"help", no_argument, 0, 'h'},
 			{"version", no_argument, 0, 'v'},
 			{"config", required_argument, 0, 'c'},
-			{"redis-host", required_argument, 0, 'H'},
-			{"redis-port", required_argument, 0, 'p'},
 		};
 		int opt_index = 0;
 		int c = getopt_long(argc, argv, "hvH:p:", long_opts, &opt_index);
@@ -291,12 +285,6 @@ int main(int argc, char **argv)
 			case 'v':
 				version();
 				exit(EXIT_SUCCESS);
-				break;
-			case 'H':
-				hostname = optarg;
-				break;
-			case 'p':
-				port = atoi(optarg);
 				break;
 			case 'c':
 				config = optarg;
@@ -403,7 +391,7 @@ int main(int argc, char **argv)
 		}
 
 		struct timeval timeout = {1, 500000};
-		monitor_con = redisConnectWithTimeout(hostname, port, timeout);
+		monitor_con = redisConnectWithTimeout(prb_config.redis_host, prb_config.redis_port, timeout);
 
 		if (monitor_con->err) {
 			PRB_ERROR("main", "Redis connection error: %s", monitor_con->errstr);
@@ -425,7 +413,8 @@ int main(int argc, char **argv)
 
 		// Create folder for the working db files
 		char db_dir[128];
-		snprintf(db_dir, sizeof(db_dir), "./db/%04d-%02d-%02d_%02dh%02dm%02ds",
+		snprintf(db_dir, sizeof(db_dir), "%s/%04d-%02d-%02d_%02dh%02dm%02ds",
+				prb_config.db_dir,
 				1900 + cur_tm->tm_year, cur_tm->tm_mon + 1, cur_tm->tm_mday,
 				cur_tm->tm_hour, cur_tm->tm_min, cur_tm->tm_sec);
 		mkdir(db_dir, 0770);
@@ -449,7 +438,7 @@ int main(int argc, char **argv)
 		else
 			sleep(1); // give some time to initialize database table
 
-		c = redisAsyncConnect(hostname, port);
+		c = redisAsyncConnect(prb_config.redis_host, prb_config.redis_port);
 
 		if (c->err) {
 			PRB_ERROR("main", "Redis connection error: %s", c->errstr);
