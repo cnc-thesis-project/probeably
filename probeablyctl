@@ -1,5 +1,5 @@
 #!/bin/sh
-prb_socket=/var/run/probeably/probeably.sock
+prb_socket=/tmp/probeably.sock
 
 send_command() {
 	echo "$1" | nc -U "$prb_socket"
