@@ -8,7 +8,7 @@ sqlite3 *prb_open_database(const char *path)
 	sqlite3 *db = 0;
 	int rc = sqlite3_open(path, &db);
 	if (rc != SQLITE_OK) {
-		PRB_ERROR("database", "Failed to open sqlite3 database file:\n%s", sqlite3_errmsg(db));
+		PRB_ERROR("database", "Failed to open sqlite3 database file: %s", sqlite3_errmsg(db));
 		return 0;
 	}
 
