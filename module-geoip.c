@@ -7,7 +7,6 @@
 #include "config.h"
 
 static const char *database_url = "https://iptoasn.com/data/ip2asn-v4-u32.tsv.gz";
-static const char *database_path = "./dataset/ip2asn-v4-u32.tsv.gz";
 static const char *database_tmp = "/tmp/ip2asn-v4-u32.tsv.gz.tmp";
 
 struct geoip_table
@@ -160,6 +159,8 @@ static void geoip_module_init(struct probeably *p)
 	// or update if the last download time exceeds configured ttl
 
 	int download = 0;
+
+	char *database_path = prb_config.geoip_path;
 
 	if (access(database_path, F_OK) != 0) {
 		download = 1;
