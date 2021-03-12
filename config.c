@@ -40,6 +40,9 @@ static int handler(void *user, const char *section, const char *name,
 		else if (!strcmp(name, "con_limit")) {
 			prb_config.con_limit = atoi(value);
 		}
+		else if (!strcmp(name, "db_dir")) {
+			prb_config.db_dir = strdup(value);
+		}
 	}
 	return 0;
 }
