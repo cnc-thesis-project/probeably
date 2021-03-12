@@ -217,9 +217,9 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 	(void) w;
 	(void) revents;
 	ev_break(loop, EVBREAK_ALL);
-	PRB_DEBUG("main", "Killing workers...");
+	PRB_DEBUG("main", "Killing workers ...");
 	kill(0, SIGINT);
-	PRB_DEBUG("main", "Exiting...");
+	PRB_DEBUG("main", "Exiting ...");
 	exit(EXIT_SUCCESS);
 }
 
@@ -228,7 +228,7 @@ static void child_callback(EV_P_ ev_child *w, int revents)
 	(void) revents;
 	ev_child_stop (EV_A_ w);
 	if (w->rstatus != 0) {
-		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting...", w->pid, w->rstatus);
+		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting ...", w->pid, w->rstatus);
 		redisFree(monitor_con);
 		kill(0, SIGINT);
 		exit(EXIT_FAILURE);
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	PRB_INFO("main", "Starting probeably %s", PRB_VERSION);
+	PRB_INFO("main", "Starting probeably %s ...", PRB_VERSION);
 
 	prb_load_config(config);
 	worker_len = prb_config.num_workers;
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 	time(&cur_time);
 	cur_tm = localtime(&cur_time);
 
-	PRB_DEBUG("main", "Starting workers...");
+	PRB_INFO("main", "Starting workers ...");
 
 	child = malloc(sizeof(pid_t) * worker_len);
 
@@ -389,6 +389,7 @@ int main(int argc, char **argv)
 	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
+		PRB_INFO("main", "Probeably is running");
 		// parent path
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
@@ -396,7 +397,7 @@ int main(int argc, char **argv)
 
 		// Init IPC socket
 		if (ipc_init() < 0) {
-			PRB_ERROR("main", "IPC initialization failed. Exiting...");
+			PRB_ERROR("main", "IPC initialization failed. Exiting ...");
 			// TODO: clean
 			exit(EXIT_FAILURE);
 		}
