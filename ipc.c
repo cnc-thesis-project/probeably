@@ -11,6 +11,7 @@
 #include "config.h"
 #include "ipc.h"
 #include "module.h"
+#include <sys/wait.h>
 
 #define IPC_BUFFER_SIZE 32
 static char ipc_buffer[IPC_BUFFER_SIZE];
@@ -131,6 +132,16 @@ static void ipc_command_monitor(int sd)
 	send(sd, send_buffer, strlen(send_buffer), 0);
 	prev_works_done = shm->works_done;
 	prev_works_in_queue = works_in_queue;
+
+	// print workers alive
+	int alive = 0;
+	int status = 0;
+	for (int i = 0; i < worker_len; i++) {
+		if (waitpid(worker_pid[i], &status, WNOHANG) == 0)
+			alive++;
+	}
+	snprintf(send_buffer, send_buffer_len, "Workers alive [%d/%d]\n", alive, worker_len);
+	send(sd, send_buffer, strlen(send_buffer), 0);
 
 	// print status color explanation
 	snprintf(send_buffer, send_buffer_len, "Status color: ");

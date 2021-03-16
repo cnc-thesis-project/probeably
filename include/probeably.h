@@ -36,6 +36,7 @@ struct shm_data
 };
 extern struct shm_data *shm;
 extern redisContext *monitor_con;
+extern pid_t *worker_pid;
 extern int worker_len;
 
 struct probeably {

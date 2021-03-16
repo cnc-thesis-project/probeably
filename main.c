@@ -25,7 +25,7 @@ int WORKER_ID = 0;
 int WORKER_INDEX = 0;
 
 ev_timer timer;
-pid_t *child = 0;
+pid_t *worker_pid = 0;
 ev_child cw;
 int worker_len = 32;
 
@@ -361,7 +361,7 @@ int main(int argc, char **argv)
 
 	PRB_INFO("main", "Starting workers ...");
 
-	child = malloc(sizeof(pid_t) * worker_len);
+	worker_pid = malloc(sizeof(pid_t) * worker_len);
 
 	pid_t pid = 0;
 
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
 		pid = fork();
 		if (pid == 0)
 			break;
-		child[i] = pid;
+		worker_pid[i] = pid;
 	}
 
 	WORKER_ID = getpid();
@@ -470,7 +470,7 @@ int main(int argc, char **argv)
 	if (monitor_con)
 		redisFree(monitor_con);
 	prb_free_config();
-	free(child);
+	free(worker_pid);
 
 	return 0;
 }
