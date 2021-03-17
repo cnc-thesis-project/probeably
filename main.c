@@ -26,7 +26,6 @@ int WORKER_INDEX = 0;
 
 ev_timer timer;
 pid_t *worker_pid = 0;
-ev_child cw;
 int worker_len = 32;
 
 struct shm_data *shm;
@@ -227,13 +226,14 @@ static void child_callback(EV_P_ ev_child *w, int revents)
 {
 	(void) revents;
 	ev_child_stop (EV_A_ w);
-	if (w->rstatus != 0) {
-		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting ...", w->pid, w->rstatus);
+
+	if (WEXITSTATUS(w->rstatus) != 0) {
+		PRB_ERROR("main", "Failure in worker pid %d. Exitied with status %d. Exiting ...", w->rpid, WEXITSTATUS(w->rstatus));
 		redisFree(monitor_con);
 		kill(0, SIGINT);
 		exit(EXIT_FAILURE);
 	} else {
-		PRB_ERROR("main", "Worker pid %d exited with 0", w->pid);
+		PRB_ERROR("main", "Worker pid %d exited with 0", w->rpid);
 		if (monitor_con) {
 			redisFree(monitor_con);
 		}
@@ -309,8 +309,6 @@ int main(int argc, char **argv)
 	init_modules();
 	init_ip_modules();
 
-	ev_signal signal_watcher;
-	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
 	signal(SIGPIPE, SIG_IGN);
 
 	// create shared memory
@@ -379,8 +377,11 @@ int main(int argc, char **argv)
 	if (pid != 0) {
 		PRB_INFO("main", "Probeably is running");
 		// parent path
-		ev_child_init(&cw, child_callback, pid, 0);
+		ev_child cw;
+		ev_child_init(&cw, child_callback, 0, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
+		ev_signal signal_watcher;
+		ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
 		ev_signal_start(EV_DEFAULT, &signal_watcher);
 
 		// Init IPC socket
