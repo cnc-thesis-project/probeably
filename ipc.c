@@ -133,16 +133,6 @@ static void ipc_command_monitor(int sd)
 	prev_works_done = shm->works_done;
 	prev_works_in_queue = works_in_queue;
 
-	// print workers alive
-	int alive = 0;
-	int status = 0;
-	for (int i = 0; i < worker_len; i++) {
-		if (waitpid(worker_pid[i], &status, WNOHANG) == 0)
-			alive++;
-	}
-	snprintf(send_buffer, send_buffer_len, "Workers alive [%d/%d]\n", alive, worker_len);
-	send(sd, send_buffer, strlen(send_buffer), 0);
-
 	// print status color explanation
 	snprintf(send_buffer, send_buffer_len, "Status color: ");
 	send(sd, send_buffer, strlen(send_buffer), 0);
@@ -154,17 +144,27 @@ static void ipc_command_monitor(int sd)
 	send(sd, send_buffer, strlen(send_buffer), 0);
 
 	// print worker status visually
+	int workers_alive = 0;
 	int width = 50;
 	for (int y = 0; y < worker_len; y += width) {
 		for (int x = 0; x < width && x + y < worker_len; x++) {
 			int status = shm->worker_status[x + y];
-			char working = (status != WORKER_STATUS_IDLE ? '#' : '.');
+			char working = 'X';
+			if (waitpid(worker_pid[x + y], NULL, WNOHANG) == 0) {
+				// the worker is alive!!!!!
+				working = (status != WORKER_STATUS_IDLE ? '#' : '.');
+				workers_alive++;
+			}
 			snprintf(send_buffer, send_buffer_len, "%s%c\x1b[0m", worker_status_color[status], working);
 			send(sd, send_buffer, strlen(send_buffer), 0);
 		}
 		snprintf(send_buffer, send_buffer_len, "\n");
 		send(sd, send_buffer, strlen(send_buffer), 0);
 	}
+
+	// print workers alive
+	snprintf(send_buffer, send_buffer_len, "Workers alive [%d/%d]\n", workers_alive, worker_len);
+	send(sd, send_buffer, strlen(send_buffer), 0);
 
 	pthread_mutex_unlock(&shm->busy_workers_lock);
 	free(send_buffer);
