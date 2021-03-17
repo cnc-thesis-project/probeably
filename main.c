@@ -423,7 +423,8 @@ int main(int argc, char **argv)
 		char db_latest[128];
 		snprintf(db_latest, sizeof(db_latest), "%s/latest", prb_config.db_dir);
 		remove(db_latest);
-		symlink(db_dir, db_latest);
+		// first argument is in relative path, in same folder as symlink
+		symlink(strlen(prb_config.db_dir) + 1 + db_dir, db_latest);
 
 		// Create db file
 		char db_name[256];
