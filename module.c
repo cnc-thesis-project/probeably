@@ -86,6 +86,8 @@ static int test_probe(struct prb_request *r, struct prb_socket *s, char *respons
 	response[total] = 0;
 	PRB_DEBUG("module", "Got response:\n%s", response);
 
+	prb_socket_shutdown(s);
+
 	return total;
 }
 

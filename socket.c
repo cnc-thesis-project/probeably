@@ -15,15 +15,26 @@
 #define TIMEOUT 15
 
 char err_buf[80];// TODO: use MAX_ERROR_SZ
+WOLFSSL_METHOD *client_method = 0;
+WOLFSSL_CTX *wolfssl_ctx = 0;
 
 void prb_socket_init()
 {
 	wolfSSL_Init();
+	client_method = wolfSSLv23_client_method();
+	if ( (wolfssl_ctx = wolfSSL_CTX_new(client_method)) == NULL){
+		PRB_ERROR("socket", "Failed creating WolfSSL context");
+		exit(EXIT_FAILURE);
+	}
+
+	wolfSSL_CTX_set_timeout(wolfssl_ctx, TIMEOUT);
+	wolfSSL_CTX_set_verify(wolfssl_ctx, SSL_VERIFY_NONE, 0);
 }
 
 void prb_socket_cleanup()
 {
 	wolfSSL_Cleanup();
+	wolfSSL_CTX_free(wolfssl_ctx);
 }
 
 static int connect_raw(struct prb_socket *s, const char *ip, int port)
@@ -87,15 +98,8 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 
 	if (s->type == PRB_SOCKET_SSL || s->type == PRB_SOCKET_UNKNOWN) {
 		PRB_DEBUG("socket", "Attempting to perform SSL handshake");
-		if ( (s->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())) == NULL){
-			PRB_ERROR("socket", "Failed creating WolfSSL context");
-			exit(EXIT_FAILURE);
-		}
 
-		wolfSSL_CTX_set_timeout(s->ctx, TIMEOUT);
-		wolfSSL_CTX_set_verify(s->ctx, SSL_VERIFY_NONE, 0);
-
-		if( (s->ssl = wolfSSL_new(s->ctx)) == NULL) {
+		if( (s->ssl = wolfSSL_new(wolfssl_ctx)) == NULL) {
 			PRB_ERROR("socket", "Failed initiating WolfSSL");
 			exit(EXIT_FAILURE);
 		}
@@ -107,7 +111,6 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 		err = wolfSSL_connect(s->ssl);
 		if (err != SSL_SUCCESS) {
 			PRB_ERROR("socket", "SSL handshake failed: %d: %s", wolfSSL_get_error(s->ssl, err), wolfSSL_ERR_error_string(wolfSSL_get_error(s->ssl, err), err_buf));
-			wolfSSL_CTX_free(s->ctx);
 			wolfSSL_free(s->ssl);
 			shutdown(s->sock, SHUT_RDWR);
 			close(s->sock);
@@ -134,7 +137,6 @@ void prb_socket_shutdown(struct prb_socket *s)
 		case PRB_SOCKET_SSL:
 			PRB_DEBUG("socket", "Shutting down SSL socket");
 			wolfSSL_shutdown(s->ssl);
-			wolfSSL_CTX_free(s->ctx);
 			wolfSSL_free(s->ssl);
 			/* fallthrough */
 		case PRB_SOCKET_RAW:
