@@ -475,7 +475,11 @@ def start_server(jarm_sock="/tmp/jarm.sock", workers=10):
     signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0) as sock:
-        os.unlink(jarm_sock)
+		try:
+	        os.unlink(jarm_sock)
+		except:
+			pass
+
         sock.bind(jarm_sock)
         sock.listen(100)
 
