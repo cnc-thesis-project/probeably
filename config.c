@@ -52,6 +52,15 @@ static int handler(void *user, const char *section, const char *name,
 		else if (!strcmp(name, "redis_port")) {
 			prb_config.redis_port = atoi(value);
 		}
+		else if (!strcmp(name, "jarm_script")) {
+			prb_config.jarm_script = strdup(value);
+		}
+		else if (!strcmp(name, "jarm_socket")) {
+			prb_config.jarm_socket = strdup(value);
+		}
+		else if (!strcmp(name, "jarm_workers")) {
+			prb_config.jarm_workers = atoi(value);
+		}
 	}
 	return 0;
 }

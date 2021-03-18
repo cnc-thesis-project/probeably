@@ -17,6 +17,9 @@ struct _prb_config {
 	char *geoip_path;
 	char *redis_host;
 	int redis_port;
+	char *jarm_script;
+	char *jarm_socket;
+	int jarm_workers;
 };
 
 extern struct _prb_config prb_config;
