@@ -21,6 +21,10 @@ install_data('probeablyctl',
 	install_dir: get_option('bindir'),
 	install_mode: 'rwxr-xr-x',
 )
+install_data('jarm_server',
+	install_dir: get_option('bindir'),
+	install_mode: 'rwxr-xr-x',
+)
 
 executable('probeably',
 	'module-geoip.c',
