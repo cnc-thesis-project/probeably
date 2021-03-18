@@ -2,11 +2,13 @@
 #include <string.h>
 #include <wolfssl/ssl.h>
 #include <sys/wait.h>
+#include <sys/un.h>
 #include "module.h"
 #include "module-tls.h"
 #include "socket.h"
 #include "database.h"
 #include "probeably.h"
+#include "config.h"
 
 static int tls_module_check(const char *response, int len)
 {
@@ -19,6 +21,21 @@ static int tls_module_check(const char *response, int len)
 static void tls_module_init(struct probeably *p)
 {
 	(void) p;
+
+	pid_t jarm_pid = fork();
+	if (jarm_pid == -1) {
+		PRB_ERROR("tls", "Failed forking JARM process: %s", strerror(errno));
+		return;
+	} else if (jarm_pid == 0) {
+		char jarm_cmd[256];
+		snprintf(jarm_cmd, 256, "%s %s %d 2> /dev/null", prb_config.jarm_script, prb_config.jarm_socket, prb_config.jarm_workers);
+
+		int res = system(jarm_cmd);
+		if (res != 0)
+			PRB_ERROR("tls", "JARM process returned error: %d", res);
+
+		exit(EXIT_SUCCESS);
+	}
 }
 
 static void tls_module_cleanup(struct probeably *p)
@@ -53,44 +70,36 @@ static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	PRB_DEBUG("tls", "Running JARM");
 
-	int pfd[2];
-	if (pipe(pfd)) {
-		PRB_ERROR("tls", "Failed creating pipe: %s", strerror(errno));
+	int sd;
+	struct sockaddr_un addr;
+
+	if ((sd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0) {
+		PRB_ERROR("tls", "Error creating socket");
 		return -1;
 	}
 
-	char jarm_hash[64] = {0};
-	pid_t jarm_pid = fork();
-	switch (jarm_pid) {
-		case -1:
-			close(pfd[0]);
-			close(pfd[1]);
-			PRB_ERROR("tls", "Failed forking JARM process: %s", strerror(errno));
-			return -1;
-		case 0:
-			close(pfd[0]);
-			dup2(pfd[1], 1);
-			dup2(pfd[1], 2);
-			char jarm_cmd[256];
-			snprintf(jarm_cmd, 256, "python3 ./jarm/jarm.py -s -p %d %s", r->port, r->ip);
-			int res = system(jarm_cmd);
-			(void) res;
-			exit(EXIT_SUCCESS);
-		default:
-			close(pfd[1]);
-			int size = read(pfd[0], jarm_hash, 62);
-			if (size != 62) {
-				PRB_ERROR("tls", "Failed getting JARM hash: %s", jarm_hash);
-				return -1;
-			}
-			jarm_hash[62] = '\0';
-			close(pfd[0]);
-			waitpid(jarm_pid, NULL, 0);
+	memset(&addr, 0, sizeof(struct sockaddr_un));
+	addr.sun_family = AF_UNIX;
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", prb_config.jarm_socket);
+
+	if (connect(sd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+		PRB_ERROR("ipc", "Failed to connect to JARM socket");
+		close(sd);
+		return -1;
 	}
+
+	char ip_port[64] = {0};
+	char jarm_hash[64] = {0};
+
+	snprintf(ip_port, sizeof(ip_port), "%s %d", r->ip, r->port);
+	send(sd, ip_port, strlen(ip_port), 0);
+	recv(sd, jarm_hash, sizeof(jarm_hash), 0);
+
+	close(sd);
 
 	PRB_DEBUG("tls", "JARM hash for %s:%d: %s", r->ip, r->port, jarm_hash);
 
-	prb_write_data(p, r, "tls", "jarm", jarm_hash, 63, PRB_DB_SUCCESS);
+	prb_write_data(p, r, "tls", "jarm", jarm_hash, 62, PRB_DB_SUCCESS);
 
 	return 0;
 }
