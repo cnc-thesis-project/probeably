@@ -39,7 +39,7 @@ static void tls_module_init(struct probeably *p)
 		execve(jarm_argv[0], jarm_argv, environ);
 
 		// reached only when execve fails
-		PRB_ERROR("tls", "failed to execve JARM process");
+		PRB_ERROR("tls", "failed to execve JARM process: %s", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 

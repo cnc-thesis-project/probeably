@@ -504,7 +504,10 @@ def start_server(jarm_sock="/tmp/jarm.sock", workers=10):
             conn.close()
 
 def sigint_handler(sig, frame):
-	pass
+	# sudoku after 30 seconds, only relevant when probeably fails to terminate it somehow
+	# the sleep is to make sure workers has enough time to finish the job
+	time.sleep(30)
+	sys.exit(0)
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, sigint_handler)
@@ -514,4 +517,4 @@ if __name__ == "__main__":
         workers = int(sys.argv[2])
         start_server(jarm_sock, workers)
     else:
-        print("Usage: {} <jarm-socket-path> <workerss>".format(sys.argv[0]))
+        print("Usage: {} <jarm-socket-path> <workers>".format(sys.argv[0]))

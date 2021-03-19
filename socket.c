@@ -150,6 +150,9 @@ void prb_socket_shutdown(struct prb_socket *s)
 			close(s->sock);
 			break;
 	}
+
+	// thanks wolfssl, thanks... thanks thanks thanks thanks
+	wolfSSL_ERR_clear_error();
 }
 
 ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
