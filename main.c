@@ -28,10 +28,13 @@ ev_timer timer;
 pid_t *worker_pid = 0;
 ev_child cw;
 int worker_len = 32;
+int stop_working = 0;
 
 struct shm_data *shm;
 
 redisContext *monitor_con = 0;
+
+static redisAsyncContext *c = 0;
 
 static void update_worker_state(int start_work)
 {
@@ -99,15 +102,16 @@ static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int 
 
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
+	redisReply *reply = r;
+
+	if (!reply || reply->elements < 2) {
+		return;
+	}
+
 	PRB_DEBUG("main", "Running port callback");
 
-	redisReply *reply = r;
-	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
-
-	if (!reply || reply->elements < 2)
-		return;
-
 	char *values = strdup(reply->element[1]->str);
+	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
 	PRB_DEBUG("main", "Got from redis: %s", values);
 
@@ -216,11 +220,23 @@ static void sigint_callback(struct ev_loop *loop, ev_signal *w, int revents)
 {
 	(void) w;
 	(void) revents;
+
+	if (stop_working)
+		return;
+
+	stop_working = 1;
+
 	ev_break(loop, EVBREAK_ALL);
-	PRB_DEBUG("main", "Killing workers ...");
-	kill(0, SIGINT);
-	PRB_DEBUG("main", "Exiting ...");
-	exit(EXIT_SUCCESS);
+
+	if (WORKER_INDEX == -1) {
+		PRB_DEBUG("main", "Killing workers ...");
+
+		for (int i = 0; i < worker_len; i++) {
+			waitpid(worker_pid[i], 0, 0);
+		}
+
+		PRB_DEBUG("main", "Exiting ...");
+	}
 }
 
 static void child_callback(EV_P_ ev_child *w, int revents)
@@ -309,8 +325,6 @@ int main(int argc, char **argv)
 	init_modules();
 	init_ip_modules();
 
-	ev_signal signal_watcher;
-	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
 	signal(SIGPIPE, SIG_IGN);
 
 	// create shared memory
@@ -363,25 +377,25 @@ int main(int argc, char **argv)
 
 	worker_pid = malloc(sizeof(pid_t) * worker_len);
 
-	pid_t pid = 0;
+	pid_t pid = -1;
 
+	WORKER_INDEX = -1;
 	for (int i = 0; i < worker_len; i++) {
-		WORKER_INDEX = i;
 		pid = fork();
-		if (pid == 0)
+		if (pid == 0) {
+			WORKER_INDEX = i;
 			break;
+		}
 		worker_pid[i] = pid;
 	}
 
 	WORKER_ID = getpid();
-	redisAsyncContext *c = 0;
 
 	if (pid != 0) {
 		PRB_INFO("main", "Probeably is running");
 		// parent path
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
-		ev_signal_start(EV_DEFAULT, &signal_watcher);
 
 		// Init IPC socket
 		if (ipc_init() < 0) {
@@ -456,20 +470,28 @@ int main(int argc, char **argv)
 		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
 	}
 
+	ev_signal signal_watcher;
+	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
+	ev_set_priority(&signal_watcher, EV_MAXPRI);
+	ev_signal_start(EV_DEFAULT, &signal_watcher);
 	ev_loop(EV_DEFAULT_ 0);
 
 	cleanup_modules();
 	cleanup_ip_modules();
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
+
 	pthread_mutex_destroy(&shm->busy_workers_lock);
 	pthread_mutex_destroy(&shm->ip_cons_lock);
 	pthread_cond_destroy(&shm->ip_cons_cv);
 	munmap(shm, SHM_SIZE);
-	if (c)
+
+	if (c) {
 		redisAsyncFree(c);
+	}
 	if (monitor_con)
 		redisFree(monitor_con);
+	ev_loop_destroy(EV_DEFAULT_UC); // must be after redisAsyncFree
 	prb_free_config();
 	free(worker_pid);
 

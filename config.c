@@ -79,4 +79,10 @@ int prb_load_config(char *file)
 void prb_free_config()
 {
 	free(prb_config.log_file);
+	free(prb_config.ipc_socket);
+	free(prb_config.db_dir);
+	free(prb_config.geoip_path);
+	free(prb_config.redis_host);
+	free(prb_config.jarm_script);
+	free(prb_config.jarm_socket);
 }

@@ -114,6 +114,11 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port)
 			wolfSSL_free(s->ssl);
 			shutdown(s->sock, SHUT_RDWR);
 			close(s->sock);
+			if (s->type == PRB_SOCKET_SSL) {
+				PRB_ERROR("socket", "Cannot switch to raw socket, expected SSL socket");
+				shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+				return -1;
+			}
 			if(connect_raw(s, ip, port) < 0) {
 				shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 				return -1;

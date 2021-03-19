@@ -232,6 +232,11 @@ static void geoip_module_init(struct probeably *p)
 static void geoip_module_cleanup(struct probeably *p)
 {
 	(void) p;
+	if (WORKER_INDEX != -1)
+		// TODO: temporal solution, cannot really free for workers since they will ironically
+		// bomb the memory with their page cows shits
+		return;
+
 	for (int i = 0; i < geoip_len; i++) {
 		free(geoip_map[i].country);
 		free(geoip_map[i].as_desc);

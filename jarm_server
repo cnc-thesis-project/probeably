@@ -483,7 +483,7 @@ def start_server(jarm_sock="/tmp/jarm.sock", workers=10):
         sock.bind(jarm_sock)
         sock.listen(100)
 
-        for i in range(workers):
+        for i in range(workers-1):
             child = os.fork()
             if child == 0:
                 break
@@ -503,7 +503,12 @@ def start_server(jarm_sock="/tmp/jarm.sock", workers=10):
 
             conn.close()
 
+def sigint_handler(sig, frame):
+	pass
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, sigint_handler)
+
     if len(sys.argv) >= 3:
         jarm_sock = sys.argv[1]
         workers = int(sys.argv[2])

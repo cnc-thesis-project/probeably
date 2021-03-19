@@ -10,6 +10,10 @@
 #include "probeably.h"
 #include "config.h"
 
+extern char **environ;
+
+static pid_t jarm_pid = 0;
+
 static int tls_module_check(const char *response, int len)
 {
 	(void) response;
@@ -22,31 +26,38 @@ static void tls_module_init(struct probeably *p)
 {
 	(void) p;
 
-	pid_t jarm_pid = fork();
+	jarm_pid = fork();
 	if (jarm_pid == -1) {
 		PRB_ERROR("tls", "Failed forking JARM process: %s", strerror(errno));
 		return;
 	} else if (jarm_pid == 0) {
-		char jarm_cmd[256];
-		snprintf(jarm_cmd, 256, "%s %s %d 2> /dev/null", prb_config.jarm_script, prb_config.jarm_socket, prb_config.jarm_workers);
+		char jarm_workers_str[8];
+		snprintf(jarm_workers_str, sizeof(jarm_workers_str), "%d", prb_config.jarm_workers);
+		char *jarm_argv[] = {prb_config.jarm_script, prb_config.jarm_socket, jarm_workers_str, 0};
 
-		int res = system(jarm_cmd);
-		if (res != 0)
-			PRB_ERROR("tls", "JARM process returned error: %d", res);
+		PRB_INFO("tls", "Starting JARM process");
+		execve(jarm_argv[0], jarm_argv, environ);
 
-		exit(EXIT_SUCCESS);
+		// reached only when execve fails
+		PRB_ERROR("tls", "failed to execve JARM process");
+		exit(EXIT_FAILURE);
+	}
+
+	sleep(1);
+	if (waitpid(jarm_pid, NULL, WNOHANG) != 0) {
+		PRB_ERROR("tls", "JARM process not alive, exiting");
+		exit(EXIT_FAILURE);
 	}
 }
 
 static void tls_module_cleanup(struct probeably *p)
 {
 	(void) p;
+	kill(jarm_pid, SIGTERM);
 }
 
 static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	int result = -1;
-
 	PRB_DEBUG("tls", "Grabbing certificate");
 	if (prb_socket_connect(s, r->ip, r->port) < 0) {
 		return -1;
