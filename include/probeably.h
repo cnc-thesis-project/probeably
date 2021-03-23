@@ -41,6 +41,10 @@ extern int worker_len;
 
 struct probeably {
 	sqlite3 *db;
+
+	// Indexes ports to modules.
+	// This is used to prioritize modules based on the port number.
+	struct prb_module *ports_to_modules[65536];
 };
 
 #endif
