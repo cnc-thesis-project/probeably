@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <hiredis/adapters/libev.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <getopt.h>
 #include <stddef.h>
 #include "config.h"
@@ -168,7 +169,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	req.timestamp = timestamp;
 
 	// run the module
-	struct timespec start = start_timer();
+	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
 	if (port == 0)
 		run_ip_modules(&req); // ip related analysis stuff, e.g. geoip
 	else
