@@ -153,9 +153,8 @@ void run_modules(struct prb_request *r)
 	if (!mod_name) {
 		mod_name = "unknown";
 
-		// if it contains anything, save the test probe response
-		if (response_len > 0)
-			prb_write_data(&prb, r, mod_name, "response", response, response_len, PRB_DB_SUCCESS);
+		// save the test probe response
+		prb_write_data(&prb, r, mod_name, "response", response, response_len, PRB_DB_SUCCESS);
 	}
 
 	prb_write_data(&prb, r, "port", "open", mod_name, strlen(mod_name), PRB_DB_SUCCESS);
