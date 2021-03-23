@@ -53,7 +53,9 @@ static void tls_module_init(struct probeably *p)
 static void tls_module_cleanup(struct probeably *p)
 {
 	(void) p;
-	kill(jarm_pid, SIGTERM);
+	if (WORKER_INDEX == -1) {
+		kill(jarm_pid, SIGTERM);
+	}
 }
 
 static int tls_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
