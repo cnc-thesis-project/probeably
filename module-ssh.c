@@ -34,9 +34,39 @@ static int ssh_module_check(const char *response, int len)
 	return 0;
 }
 
-static void ssh_module_init(struct probeably *p)
+// Connect to SSH server and return server string in 'server_string' of size 'size'.
+static int ssh_connect(struct prb_request *r, struct prb_socket *s, char *server_string, size_t size)
+{
+	int read_len = 0;
+
+	if (prb_socket_connect(s, r->ip, r->port) < 0) {
+		return -1;
+	}
+
+	read_len = prb_socket_read(s, server_string, size);
+
+	if (ssh_module_check(server_string, read_len)) {
+		PRB_ERROR("ssh", "Not an SSH protocol");
+		prb_socket_shutdown(s);
+		return -1;
+	}
+
+	return read_len;
+}
+
+static int ssh_module_test(struct probeably *p, struct prb_request *r,
+		struct prb_socket *s, char *response, size_t size)
 {
 	(void) p;
+
+	PRB_DEBUG("ssh", "SSH test probe");
+	return ssh_connect(r, s, response, size);
+}
+
+static void ssh_module_init(struct probeably *p)
+{
+	p->ports_to_modules[22] = &module_ssh;
+	p->ports_to_modules[2222] = &module_ssh;
 }
 
 static void ssh_module_cleanup(struct probeably *p)
@@ -46,20 +76,7 @@ static void ssh_module_cleanup(struct probeably *p)
 
 static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	int read_len = 0;
-
-	if (prb_socket_connect(s, r->ip, r->port) < 0) {
-		return -1;
-	}
-
-	read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
-
-	if (ssh_module_check(ssh_buffer, read_len)) {
-		PRB_ERROR("ssh", "Not an SSH protocol");
-		prb_socket_shutdown(s);
-		return -1;
-	}
-
+	int read_len = ssh_connect(r, s, ssh_buffer, sizeof(ssh_buffer));
 	int string_len = 0;
 	for (int i = 0; i < read_len; i++) {
 		if (ssh_buffer[i] == '\r') {
@@ -110,4 +127,5 @@ struct prb_module module_ssh = {
 	.cleanup = ssh_module_cleanup,
 	.run = ssh_module_run,
 	.check = ssh_module_check,
+	.test = ssh_module_test,
 };

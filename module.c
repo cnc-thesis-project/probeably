@@ -7,7 +7,6 @@
 #include "module-telnet.h"
 #include "database.h"
 
-struct probeably prb;
 
 const char *worker_status_color[] = {
 	"",
@@ -43,6 +42,9 @@ struct prb_module *modules[] = {
 	&module_telnet,
 };
 
+// Default module to use for test probing to find out the protocol.
+static struct prb_module *default_test_module = &module_http;
+
 struct prb_module *ip_modules[] = {
 	&module_geoip,
 	&module_rdns,
@@ -62,40 +64,7 @@ void cleanup_modules()
 	}
 }
 
-static int test_probe(struct prb_request *r, struct prb_socket *s, char *response, size_t size)
-{
-	PRB_DEBUG("module", "Test probing");
-
-	if (prb_socket_connect(s, r->ip, r->port) < 0)
-		return -1;
-
-	PRB_DEBUG("module", "Sending test HTTP request");
-
-	char request_header[256];
-	snprintf(request_header, sizeof(request_header),
-			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
-	prb_socket_write(s, request_header, strlen(request_header));
-
-	size_t total = 0;
-	while (total < size - 1) {
-		int len = prb_socket_read(s, response + total, size - 1 - total);
-		if (len <= 0)
-			break;
-
-		total += len;
-	}
-
-	// got response, return
-
-	response[total] = 0;
-	PRB_DEBUG("module", "Got response:\n%s", response);
-
-	prb_socket_shutdown(s);
-
-	return total;
-}
-
-void run_modules(struct prb_request *r)
+void run_modules(struct probeably *p, struct prb_request *r)
 {
 	struct prb_socket s = {0};
 	s.type = PRB_SOCKET_UNKNOWN;
@@ -103,7 +72,12 @@ void run_modules(struct prb_request *r)
 	char *mod_name = 0;
 
 	char response[1024];
-	int response_len = test_probe(r, &s, response, sizeof(response));
+	struct prb_module *test_module = default_test_module;
+	struct prb_module *guess_module = p->ports_to_modules[r->port];
+	if (guess_module) {
+		test_module = guess_module;
+	}
+	int response_len = test_module->test(p, r, &s, response, sizeof(response));
 	if (response_len < 0) {
 		prb_write_data(&prb, r, "port", "closed", 0, 0, 0);
 		return;
@@ -129,7 +103,7 @@ void run_modules(struct prb_request *r)
 
 		// make sure response from test probing matches the module's protocol
 		if (response_len > 0 && mod->check(response, response_len) == -1) {
-			PRB_DEBUG("module", "Test probe response did not match with module '%s' protocol", mod->name);
+			PRB_DEBUG("module", "Test probe response did not match with module '%s'", mod->name);
 			continue;
 		}
 
@@ -171,8 +145,10 @@ void cleanup_ip_modules()
 	}
 }
 
-void run_ip_modules(struct prb_request *r)
+void run_ip_modules(struct probeably *p, struct prb_request *r)
 {
+	(void) p;
+
 	for (int i = 0; i < NUM_IP_MODULES; i++) {
 		struct prb_module *mod = ip_modules[i];
 

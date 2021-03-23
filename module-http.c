@@ -9,7 +9,7 @@
 
 #define HTTP_BUFFER_SIZE (16*1024)
 
-const char *user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:86.0) Gecko/20100101 Firefox/86.0";
+static const char *user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:86.0) Gecko/20100101 Firefox/86.0";
 
 static int http_module_check(const char *response, int len)
 {
@@ -21,7 +21,10 @@ static int http_module_check(const char *response, int len)
 
 static void http_module_init(struct probeably *p)
 {
-	(void) p;
+	p->ports_to_modules[80] = &module_http;
+	p->ports_to_modules[443] = &module_http;
+	p->ports_to_modules[8080] = &module_http;
+	p->ports_to_modules[8443] = &module_http;
 }
 
 static void http_module_cleanup(struct probeably *p)
@@ -29,8 +32,38 @@ static void http_module_cleanup(struct probeably *p)
 	(void) p;
 }
 
-static int http_send_request(	struct probeably *p, struct prb_request *r, struct prb_socket *sock,
-								const char *request, const char *type, int headers_only, int store_fail)
+static int http_module_test(struct probeably *p, struct prb_request *r,
+		struct prb_socket *s, char *response, size_t size)
+{
+	PRB_DEBUG("http", "Sending test HTTP request");
+
+	if (prb_socket_connect(s, r->ip, r->port) < 0)
+		return -1;
+
+	char request_header[256];
+	snprintf(request_header, sizeof(request_header),
+			"GET / HTTP/1.1\r\nUser-Agent: %s\r\nHost: www\r\n\r\n", user_agent);
+	prb_socket_write(s, request_header, strlen(request_header));
+
+	size_t total = 0;
+	while (total < size - 1) {
+		int len = prb_socket_read(s, response + total, size - 1 - total);
+		if (len <= 0)
+			break;
+
+		total += len;
+	}
+
+	// got response, return
+	response[total] = 0;
+
+	prb_socket_shutdown(s);
+
+	return total;
+}
+
+static int http_send_request(struct probeably *p, struct prb_request *r, struct prb_socket *sock,
+		const char *request, const char *type, int headers_only, int store_fail)
 {
 	char *ip = r->ip;
 	int port = r->port;
@@ -199,4 +232,5 @@ struct prb_module module_http = {
 	.cleanup = http_module_cleanup,
 	.run = http_module_run,
 	.check = http_module_check,
+	.test = http_module_test,
 };

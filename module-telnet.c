@@ -36,10 +36,15 @@ static int telnet_module_run(struct probeably *p, struct prb_request *r, struct 
 {
 	prb_socket_connect(s, r->ip, r->port);
 
+	int read_len = prb_socket_read(s, telnet_buffer, TELNET_BUFFER_SIZE);
+	if (read_len < 0) {
+		return -1;
+	}
+
 	// Send AYT.
 	prb_socket_write(s, "\xff\xf6", 2);
 
-	int read_len = prb_socket_read(s, telnet_buffer, TELNET_BUFFER_SIZE);
+	read_len = prb_socket_read(s, &telnet_buffer[read_len], TELNET_BUFFER_SIZE);
 	if (read_len <= 0) {
 		return -1;
 	}
