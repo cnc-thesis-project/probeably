@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "module.h"
-#include "module-ssh.h"
+#include "module-telnet.h"
 #include "socket.h"
 #include "database.h"
 #include "probeably.h"
@@ -25,6 +25,11 @@ static int telnet_module_check(const char *response, int len)
 static int telnet_module_test(struct probeably *p, struct prb_request *r,
 		struct prb_socket *s, char *response, size_t size)
 {
+	(void) p;
+	(void) r;
+	(void) s;
+	(void) response;
+	(void) size;
 	// TODO: how the fuck?
 	return 0;
 }

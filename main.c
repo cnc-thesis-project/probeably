@@ -33,6 +33,8 @@ int stop_working = 0;
 
 struct shm_data *shm;
 
+struct probeably prb = {0};
+
 redisContext *monitor_con = 0;
 
 static redisAsyncContext *c = 0;
@@ -171,9 +173,9 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	// run the module
 	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
 	if (port == 0)
-		run_ip_modules(&req); // ip related analysis stuff, e.g. geoip
+		run_ip_modules(&prb, &req); // ip related analysis stuff, e.g. geoip
 	else
-		run_modules(&req); // port related
+		run_modules(&prb, &req); // port related
 
 	// done with the work
 	if (port == 0)
