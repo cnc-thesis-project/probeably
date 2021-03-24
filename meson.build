@@ -44,6 +44,7 @@ executable('probeably',
 	install : true,
 	c_args : [
 		'-DPRB_LOG_LEVEL=' + log_level.to_string(),
+		'-DPRB_CONFIG_DIR="' + join_paths(get_option('prefix'), get_option('sysconfdir')) + '/probeably"',
 		'-DPRB_VERSION="' + meson.project_version() + '"',
 	],
 	dependencies : [

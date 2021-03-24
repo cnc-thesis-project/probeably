@@ -276,7 +276,10 @@ static void usage()
 
 int main(int argc, char **argv)
 {
-	char *config = "config.ini";
+	char *config_file = "/config.ini";
+	int config_path_len = strlen(PRB_CONFIG_DIR) + strlen(config_file) + 1;
+	char *config = (char*) malloc(config_path_len);
+	snprintf(config, config_path_len, "%s%s", PRB_CONFIG_DIR, config_file);
 
 	WORKER_ID = getpid();
 	prb_set_log(NULL);
@@ -314,6 +317,7 @@ int main(int argc, char **argv)
 
 	PRB_INFO("main", "Starting probeably %s ...", PRB_VERSION);
 
+	PRB_INFO("main", "Loading config from %s ...", config);
 	prb_load_config(config);
 	worker_len = prb_config.num_workers;
 	FILE *log_fd = NULL;
