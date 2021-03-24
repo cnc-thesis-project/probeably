@@ -22,9 +22,16 @@ static int telnet_module_check(const char *response, int len)
 	return 0;
 }
 
+static int telnet_module_test(struct probeably *p, struct prb_request *r,
+		struct prb_socket *s, char *response, size_t size)
+{
+	// TODO: how the fuck?
+	return 0;
+}
+
 static void telnet_module_init(struct probeably *p)
 {
-	(void) p;
+	p->ports_to_modules[23] = &module_telnet;
 }
 
 static void telnet_module_cleanup(struct probeably *p)
@@ -83,4 +90,5 @@ struct prb_module module_telnet = {
 	.cleanup = telnet_module_cleanup,
 	.run = telnet_module_run,
 	.check = telnet_module_check,
+	.test = telnet_module_test,
 };
