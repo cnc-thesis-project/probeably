@@ -35,6 +35,8 @@ static void http_module_cleanup(struct probeably *p)
 static int http_module_test(struct probeably *p, struct prb_request *r,
 		struct prb_socket *s, char *response, size_t size)
 {
+	(void) p;
+
 	PRB_DEBUG("http", "Sending test HTTP request");
 
 	if (prb_socket_connect(s, r->ip, r->port) < 0)
