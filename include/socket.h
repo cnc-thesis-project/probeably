@@ -19,5 +19,7 @@ int prb_socket_connect(struct prb_socket *s, const char *ip, int port);
 ssize_t prb_socket_read(struct prb_socket *s, void *buf, size_t count);
 ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count);
 void prb_socket_shutdown(struct prb_socket *s);
+int prb_socket_get_peer_cert(struct prb_socket *s, char **der_cert);
+char *prb_socket_get_subject_name(struct prb_socket *s);
 
 #endif

@@ -155,6 +155,65 @@ void prb_socket_shutdown(struct prb_socket *s)
 	wolfSSL_ERR_clear_error();
 }
 
+int prb_socket_get_peer_cert(struct prb_socket *s, char **der_cert)
+{
+	PRB_DEBUG("socket", "Getting peer certificate ...");
+	if (!s->ssl || s->type != PRB_SOCKET_SSL) {
+		PRB_DEBUG("socket", "Failed getting peer certificate. Not an SSL socket.");
+		return -1;
+	}
+
+	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
+	if (!cert) {
+		PRB_DEBUG("socket", "Failed getting peer certificate");
+		return -1;
+	}
+
+	int der_len = 0;
+	const unsigned char *der_cert_tmp = wolfSSL_X509_get_der(cert, &der_len);
+
+	if (!der_cert_tmp) {
+		PRB_DEBUG("socket", "Failed converting peer certificate to DER format");
+		wolfSSL_X509_free(cert);
+		return -1;
+	}
+
+	*der_cert = (char*) malloc(der_len);
+	memcpy(*der_cert, der_cert_tmp, der_len);
+	wolfSSL_X509_free(cert);
+
+	PRB_DEBUG("socket", "Succeeded getting peer certificate.");
+	return der_len;
+}
+
+char *prb_socket_get_subject_name(struct prb_socket *s)
+{
+	PRB_DEBUG("socket", "Getting Subject Name from peer ...");
+	if (!s->ssl || s->type != PRB_SOCKET_SSL) {
+		PRB_DEBUG("socket", "Failed. Not an SSL socket.");
+		return NULL;
+	}
+
+	WOLFSSL_X509 *cert = wolfSSL_get_peer_certificate(s->ssl);
+	if (!cert) {
+		PRB_DEBUG("socket", "Failed getting peer certificate");
+		return NULL;
+	}
+
+	WOLFSSL_X509_NAME *wssl_sn = wolfSSL_X509_get_subject_name(cert);
+	if (!wssl_sn) {
+		wolfSSL_X509_free(cert);
+		return NULL;
+	}
+
+	char *sn = wolfSSL_X509_NAME_oneline(wssl_sn, 0, 0);
+
+	wolfSSL_X509_free(cert);
+
+	PRB_DEBUG("socket", "Successfully returned SN = %s", sn);
+	return sn;
+}
+
 ssize_t prb_socket_write(struct prb_socket *s, const void *buf, size_t count)
 {
 	int err;

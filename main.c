@@ -499,6 +499,7 @@ int main(int argc, char **argv)
 	if (monitor_con)
 		redisFree(monitor_con);
 	ev_loop_destroy(EV_DEFAULT_UC); // must be after redisAsyncFree
+	free(config);
 	prb_free_config();
 	free(worker_pid);
 
