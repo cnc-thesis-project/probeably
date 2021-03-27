@@ -175,10 +175,17 @@ static int http_module_run(struct probeably *p, struct prb_request *r, struct pr
 	}
 
 	// Use certificate Common Name, if present, to set Host header.
-	char *host_header_value = "www";
+	char *host_header_value = NULL;
 	char *sn = prb_socket_get_subject_name(sock);
 	if (sn != NULL) {
-		host_header_value = strstr(sn, "/CN=") + 4;
+		host_header_value = strstr(sn, "/CN=");
+		if (host_header_value != NULL) {
+			host_header_value += 4;
+		}
+	}
+
+	if (host_header_value == NULL) {
+		host_header_value = "www";
 	}
 
 	prb_socket_shutdown(sock);
