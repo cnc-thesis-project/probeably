@@ -43,6 +43,7 @@ static int ssh_connect(struct prb_request *r, struct prb_socket *s, char *server
 		return -1;
 	}
 
+	prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
 	read_len = prb_socket_read(s, server_string, size);
 
 	if (ssh_module_check(server_string, read_len)) {
@@ -79,11 +80,14 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	int read_len = ssh_connect(r, s, ssh_buffer, sizeof(ssh_buffer));
 	int string_len = 0;
 	for (int i = 0; i < read_len; i++) {
-		if (ssh_buffer[i] == '\r') {
+		if (ssh_buffer[i] == '\r' || ssh_buffer[i] == '\n') {
+			PRB_DEBUG("ssh", "Found CR. Terminating server string.");
 			ssh_buffer[i] = '\0';
 			string_len = i;
 		}
 	}
+
+	PRB_DEBUG("ssh", "Server string is '%s' of length %d", ssh_buffer, string_len);
 
 	prb_write_data(p, r, "ssh", "string", ssh_buffer, string_len, PRB_DB_SUCCESS);
 
@@ -93,7 +97,6 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	// + 2 for CR LF
 	if (string_len + 2 == read_len) {
 		PRB_DEBUG("ssh", "Reading ciphers");
-		prb_socket_write(s, SSH_BANNER, strlen(SSH_BANNER));
 		read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 		ciphers = ssh_buffer;
 		ciphers_len = read_len;
