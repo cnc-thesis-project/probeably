@@ -81,7 +81,6 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	int string_len = 0;
 	for (int i = 0; i < read_len; i++) {
 		if (ssh_buffer[i] == '\r' || ssh_buffer[i] == '\n') {
-			PRB_DEBUG("ssh", "Found CR. Terminating server string.");
 			ssh_buffer[i] = '\0';
 			string_len = i;
 		}
