@@ -85,11 +85,12 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 
 	for (int i = 0; i < read_len; i++) {
 		if (ssh_buffer[i] == '\r' || ssh_buffer[i] == '\n') {
-			ssh_buffer[i] = '\0';
-			string_len = i;
 			if (ssh_buffer[i] == '\n') {
+				PRB_DEBUG("ssh", "Non-compliant server...");
 				crlf_len = 1;
 			}
+			string_len = i;
+			ssh_buffer[i] = '\0';
 			break;
 		}
 	}
