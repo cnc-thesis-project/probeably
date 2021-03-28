@@ -25,6 +25,10 @@
 int WORKER_ID = 0;
 int WORKER_INDEX = 0;
 
+static struct prb_request **pending_requests;
+static int num_pending_requests = 0;
+static int max_pending_requests = 5;
+
 ev_timer timer;
 pid_t *worker_pid = 0;
 ev_child cw;
@@ -103,6 +107,90 @@ static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int 
 	return 0;
 }
 
+static void perform_probe(struct prb_request *req)
+{
+	char *ip = req->ip;
+	int port = req->port;
+
+	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
+
+	// run the module
+	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
+	if (port == 0)
+		run_ip_modules(&prb, req); // ip related analysis stuff, e.g. geoip
+	else
+		run_modules(&prb, req); // port related
+
+	// done with the work
+	if (port == 0)
+		PRB_DEBUG("main", "Finished probing host %s (%fs)", req->ip, stop_timer(start));
+	else
+		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req->ip, req->port, stop_timer(start));
+
+	if (port > 0) {
+		// decrease the ip connection counter
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
+		pthread_mutex_lock(&shm->ip_cons_lock);
+
+		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
+		// wake up all workers that are waiting for their working ip to be available
+		pthread_cond_broadcast(&shm->ip_cons_cv);
+
+		pthread_mutex_unlock(&shm->ip_cons_lock);
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+	}
+}
+
+void pending_requests_init()
+{
+	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*));
+}
+
+int pending_requests_add(char *ip, int port, int timestamp)
+{
+	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d", ip, port, timestamp);
+	if (num_pending_requests == max_pending_requests) {
+		PRB_ERROR("main", "Failed adding pending request. Request array full.");
+		return -1;
+	}
+	struct prb_request *new_req = (struct prb_request *) malloc(sizeof(struct prb_request));
+	if (new_req == NULL) {
+		PRB_ERROR("main", "Failed allocating memory for request.");
+		return -1;
+	}
+	new_req->ip = strdup(ip);
+	new_req->port = port;
+	new_req->timestamp = timestamp;
+	pending_requests[num_pending_requests++] = new_req;
+	PRB_DEBUG("main", "Successfully added request to pending list.");
+	return 0;
+}
+
+int pending_requests_remove(struct prb_request *req)
+{
+	PRB_DEBUG("main", "Removing pending request");
+	int idx = -1;
+	for (int i = 0; i < num_pending_requests; i++)
+	{
+		if (pending_requests[idx] == req) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx < 0) {
+		return -1;
+	}
+
+	free(req->ip);
+	free(req);
+	num_pending_requests--;
+	for (int i = idx; i < num_pending_requests; i++) {
+		pending_requests[i] = pending_requests[i+1];
+	}
+	return 0;
+}
+
 static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 {
 	redisReply *reply = r;
@@ -114,9 +202,10 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	PRB_DEBUG("main", "Running port callback");
 
 	char *values = strdup(reply->element[1]->str);
+
 	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
 
-	PRB_DEBUG("main", "Got from redis: %s", values);
+	PRB_DEBUG("main", "Received job from redis: %s", values);
 
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
@@ -125,6 +214,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	strtok(0, ",");
 	int timestamp = atoi(strtok(0, ","));
 
+	// The below attributes are not currently used.
 	/*
 	// status
 	strtok(0, ",");
@@ -141,63 +231,58 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
+	if (pending_requests_add(ip, port, timestamp)) {
+		// This should never happen.
+		PRB_ERROR("main", "PENDING REQUESTS FULL. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!");
+		return;
+	}
+
+	struct prb_request *req = NULL;
+
 	update_worker_state(1);
 
-	// make sure that not too many works with the same ip address
-	// but ip modules bypasses this since they don't talk with the server at all
-	if (port > 0) {
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
-		for (;;) {
+	// Make sure that not too many work on the same ip address,
+	// but ip modules bypass this since they don't talk to the server at all.
+	for (int i = 0; i < num_pending_requests; i++) {
+		req = pending_requests[i];
+		if (req->port > 0) {
 			pthread_mutex_lock(&shm->ip_cons_lock);
-			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, 1)) {
-				// too many connections, wait and check again
-				pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
-				pthread_mutex_unlock(&shm->ip_cons_lock);
+			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
+				PRB_DEBUG("main", "FAILED UPDATE IP CON.");
+				if (i == num_pending_requests - 1) {
+					PRB_DEBUG("main", "LAST REQUEST REACHED.");
+					if (num_pending_requests < max_pending_requests) {
+						PRB_DEBUG("main", "POPPING AGAIN.");
+						pthread_mutex_unlock(&shm->ip_cons_lock);
+						goto clean;
+					}
+					// No request could be used, we have to wait till this one is available.
+					shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
+					for (;;) {
+						PRB_DEBUG("main", "WAITING FOR CONDITION.");
+						pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
+						pthread_mutex_unlock(&shm->ip_cons_lock);
+						i = -1;
+						break;
+					}
+				}
+				PRB_DEBUG("main", "CHECKING NEXT PENDING REQUEST.");
+				// Too many workers work on this IP, try the next one.
 				continue;
+			} else {
+				pthread_mutex_unlock(&shm->ip_cons_lock);
+				break;
 			}
-
-			// allowed to connect to the server
-			pthread_mutex_unlock(&shm->ip_cons_lock);
+		} else {
 			break;
 		}
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 	}
 
-	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
-
-	struct prb_request req;
-	req.ip = ip;
-	req.port = port;
-	req.timestamp = timestamp;
-
-	// run the module
-	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
-	if (port == 0)
-		run_ip_modules(&prb, &req); // ip related analysis stuff, e.g. geoip
-	else
-		run_modules(&prb, &req); // port related
-
-	// done with the work
-	if (port == 0)
-		PRB_DEBUG("main", "Finished probing host %s (%fs)", req.ip, stop_timer(start));
-	else
-		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req.ip, req.port, stop_timer(start));
-
-	if (port > 0) {
-		// decrease the ip connection counter
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
-		pthread_mutex_lock(&shm->ip_cons_lock);
-
-		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
-		// wake up all workers that are waiting for their working ip to be available
-		pthread_cond_broadcast(&shm->ip_cons_cv);
-
-		pthread_mutex_unlock(&shm->ip_cons_lock);
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
-	}
-
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+	perform_probe(req);
+	pending_requests_remove(req);
+clean:
 	update_worker_state(0);
-
 	free(values);
 }
 
@@ -328,6 +413,7 @@ int main(int argc, char **argv)
 	}
 	prb_set_log(log_fd);
 
+	pending_requests_init();
 	prb_socket_init();
 	init_modules();
 	init_ip_modules();
