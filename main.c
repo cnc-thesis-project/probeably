@@ -242,35 +242,28 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	// Make sure that not too many work on the same ip address,
 	// but ip modules bypass this since they don't talk to the server at all.
 	for (int i = 0; i < num_pending_requests; i++) {
-		PRB_DEBUG("main", "CHECKING NEXT PENDING REQUEST.");
 		req = pending_requests[i];
 		if (req->port > 0) {
-			PRB_DEBUG("main", "REQUEST IS PORT MODULE. ATTEMPTING TO RUN.");
 			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
 			pthread_mutex_lock(&shm->ip_cons_lock);
 			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
-				PRB_DEBUG("main", "FAILED TO UPDATE IP CON.");
 				if (i == num_pending_requests - 1) {
-					PRB_DEBUG("main", "LAST REQUEST REACHED.");
 					if (num_pending_requests < prb_config.max_pending_requests) {
-						PRB_DEBUG("main", "POPPING AGAIN.");
 						pthread_mutex_unlock(&shm->ip_cons_lock);
 						goto clean;
 					}
 					// Start over.
 					i = -1;
 					// No request could be used, we have to wait here till one is available.
-					PRB_DEBUG("main", "WAITING FOR CONDITION.");
+					PRB_DEBUG("main", "No pending request able to be run right now. Waiting ...");
 					pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
 				}
 			} else {
-				PRB_DEBUG("main", "SUCESSFULLY UPDATED IP CON");
 				pthread_mutex_unlock(&shm->ip_cons_lock);
 				break;
 			}
 			pthread_mutex_unlock(&shm->ip_cons_lock);
 		} else {
-			PRB_DEBUG("main", "REQUEST IS FOR IP MODULE. RUNNING IT.");
 			break;
 		}
 	}
