@@ -65,7 +65,7 @@ static const char cipher_exchange_ecdsa[] =
 	// reserved
 	"\x00\x00\x00\x00"
 	// ssh padding
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+	"\x00\x00\x00\x00\x00\x00\x00\x00"; // intentionally one null characeter less
 
 static const char cipher_exchange_rsa[] =
 	// packet length
@@ -121,7 +121,7 @@ static const char cipher_exchange_rsa[] =
 	// reserved
 	"\x00\x00\x00\x00"
 	// ssh padding
-	"\x00\x00\x00\x00\x00";
+	"\x00\x00\x00\x00"; // intentionally one null characeter less
 
 static const char cipher_exchange_ed25519[] =
 	// packet length
@@ -177,7 +177,7 @@ static const char cipher_exchange_ed25519[] =
 	// reserved
 	"\x00\x00\x00\x00"
 	// ssh padding
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+	"\x00\x00\x00\x00\x00\x00\x00\x00"; // intentionally one null characeter less
 
 static const char key_exchange[48] =
 	// ssh packet length
@@ -186,13 +186,13 @@ static const char key_exchange[48] =
 	"\x06"
 	// key exchange method something
 	"\x1e"
-	// size of something (apparently diffie-hellman e?)
+	// size of something (random number?)
 	"\x00\x00\x00\x20"
 	// 32 bytes random number? (made in /dev/random)
 	"\x8e\xd4\xc3\x70\xe6\x97\x61\x78\x8b\xfe\xcf\x7f\xa3\xf2\xe4\x54"
 	"\xd7\x7a\xaf\x3b\x87\x22\x92\x66\xd6\xc4\x6a\xe2\xca\x5a\x77\x81"
 	// padding
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+	"\x00\x00\x00\x00\x00\x00";
 
 static int ssh_module_check(const char *response, int len)
 {
@@ -299,9 +299,9 @@ static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_soc
 
 static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	ssh_probe(p, r, s, cipher_exchange_rsa, sizeof(cipher_exchange_rsa) - 1, "ssh-rsa");
-	ssh_probe(p, r, s, cipher_exchange_ecdsa, sizeof(cipher_exchange_ecdsa) - 1, "ssh-ecdsa");
-	ssh_probe(p, r, s, cipher_exchange_ed25519, sizeof(cipher_exchange_ed25519) - 1, "ssh-ed25519");
+	ssh_probe(p, r, s, cipher_exchange_rsa, sizeof(cipher_exchange_rsa), "ssh-rsa");
+	ssh_probe(p, r, s, cipher_exchange_ecdsa, sizeof(cipher_exchange_ecdsa), "ssh-ecdsa");
+	ssh_probe(p, r, s, cipher_exchange_ed25519, sizeof(cipher_exchange_ed25519), "ssh-ed25519");
 
 	return 0;
 }
