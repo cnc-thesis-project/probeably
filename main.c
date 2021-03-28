@@ -146,33 +146,32 @@ void pending_requests_init()
 	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*));
 }
 
-int pending_requests_add(char *ip, int port, int timestamp)
+struct prb_request *pending_requests_add(char *ip, int port, int timestamp)
 {
 	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d", ip, port, timestamp);
 	if (num_pending_requests == max_pending_requests) {
 		PRB_ERROR("main", "Failed adding pending request. Request array full.");
-		return -1;
+		return NULL;
 	}
 	struct prb_request *new_req = (struct prb_request *) malloc(sizeof(struct prb_request));
 	if (new_req == NULL) {
 		PRB_ERROR("main", "Failed allocating memory for request.");
-		return -1;
+		return NULL;
 	}
 	new_req->ip = strdup(ip);
 	new_req->port = port;
 	new_req->timestamp = timestamp;
 	pending_requests[num_pending_requests++] = new_req;
 	PRB_DEBUG("main", "Successfully added request to pending list.");
-	return 0;
+	return new_req;
 }
 
 int pending_requests_remove(struct prb_request *req)
 {
 	PRB_DEBUG("main", "Removing pending request");
 	int idx = -1;
-	for (int i = 0; i < num_pending_requests; i++)
-	{
-		if (pending_requests[idx] == req) {
+	for (int i = 0; i < num_pending_requests; i++) {
+		if (pending_requests[i] == req) {
 			idx = i;
 			break;
 		}
@@ -231,24 +230,27 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		return;
 	}
 
-	if (pending_requests_add(ip, port, timestamp)) {
-		// This should never happen.
-		PRB_ERROR("main", "PENDING REQUESTS FULL. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!");
-		return;
-	}
-
 	struct prb_request *req = NULL;
+
+	if (pending_requests_add(ip, port, timestamp) == NULL) {
+		// This should never happen.
+		PRB_ERROR("main", "PENDING REQUESTS FULL: %d/%d. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!", num_pending_requests, max_pending_requests);
+		exit(EXIT_FAILURE);
+	}
 
 	update_worker_state(1);
 
 	// Make sure that not too many work on the same ip address,
 	// but ip modules bypass this since they don't talk to the server at all.
 	for (int i = 0; i < num_pending_requests; i++) {
+		PRB_DEBUG("main", "CHECKING NEXT PENDING REQUEST.");
 		req = pending_requests[i];
 		if (req->port > 0) {
+			PRB_DEBUG("main", "REQUEST IS PORT MODULE. ATTEMPTING TO RUN.");
+			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
 			pthread_mutex_lock(&shm->ip_cons_lock);
 			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
-				PRB_DEBUG("main", "FAILED UPDATE IP CON.");
+				PRB_DEBUG("main", "FAILED TO UPDATE IP CON.");
 				if (i == num_pending_requests - 1) {
 					PRB_DEBUG("main", "LAST REQUEST REACHED.");
 					if (num_pending_requests < max_pending_requests) {
@@ -256,28 +258,25 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 						pthread_mutex_unlock(&shm->ip_cons_lock);
 						goto clean;
 					}
-					// No request could be used, we have to wait till this one is available.
-					shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
-					for (;;) {
-						PRB_DEBUG("main", "WAITING FOR CONDITION.");
-						pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
-						pthread_mutex_unlock(&shm->ip_cons_lock);
-						i = -1;
-						break;
-					}
+					// Start over.
+					i = -1;
+					// No request could be used, we have to wait here till one is available.
+					PRB_DEBUG("main", "WAITING FOR CONDITION.");
+					pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
 				}
-				PRB_DEBUG("main", "CHECKING NEXT PENDING REQUEST.");
-				// Too many workers work on this IP, try the next one.
-				continue;
 			} else {
+				PRB_DEBUG("main", "SUCESSFULLY UPDATED IP CON");
 				pthread_mutex_unlock(&shm->ip_cons_lock);
 				break;
 			}
+			pthread_mutex_unlock(&shm->ip_cons_lock);
 		} else {
+			PRB_DEBUG("main", "REQUEST IS FOR IP MODULE. RUNNING IT.");
 			break;
 		}
 	}
 
+probe:
 	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 	perform_probe(req);
 	pending_requests_remove(req);
