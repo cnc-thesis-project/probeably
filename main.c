@@ -384,7 +384,8 @@ int main(int argc, char **argv)
 				exit(EXIT_SUCCESS);
 				break;
 			case 'c':
-				config = optarg;
+				free(config);
+				config = strdup(optarg);
 				break;
 
 			default:
