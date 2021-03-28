@@ -27,7 +27,6 @@ int WORKER_INDEX = 0;
 
 static struct prb_request **pending_requests;
 static int num_pending_requests = 0;
-static int max_pending_requests = 5;
 
 ev_timer timer;
 pid_t *worker_pid = 0;
@@ -143,13 +142,13 @@ static void perform_probe(struct prb_request *req)
 
 void pending_requests_init()
 {
-	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*));
+	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*) * prb_config.max_pending_requests);
 }
 
 struct prb_request *pending_requests_add(char *ip, int port, int timestamp)
 {
 	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d", ip, port, timestamp);
-	if (num_pending_requests == max_pending_requests) {
+	if (num_pending_requests == prb_config.max_pending_requests) {
 		PRB_ERROR("main", "Failed adding pending request. Request array full.");
 		return NULL;
 	}
@@ -234,7 +233,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 
 	if (pending_requests_add(ip, port, timestamp) == NULL) {
 		// This should never happen.
-		PRB_ERROR("main", "PENDING REQUESTS FULL: %d/%d. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!", num_pending_requests, max_pending_requests);
+		PRB_ERROR("main", "PENDING REQUESTS FULL: %d/%d. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!", num_pending_requests, prb_config.max_pending_requests);
 		exit(EXIT_FAILURE);
 	}
 
@@ -253,7 +252,7 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 				PRB_DEBUG("main", "FAILED TO UPDATE IP CON.");
 				if (i == num_pending_requests - 1) {
 					PRB_DEBUG("main", "LAST REQUEST REACHED.");
-					if (num_pending_requests < max_pending_requests) {
+					if (num_pending_requests < prb_config.max_pending_requests) {
 						PRB_DEBUG("main", "POPPING AGAIN.");
 						pthread_mutex_unlock(&shm->ip_cons_lock);
 						goto clean;
@@ -276,7 +275,6 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 		}
 	}
 
-probe:
 	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 	perform_probe(req);
 	pending_requests_remove(req);
@@ -404,7 +402,10 @@ int main(int argc, char **argv)
 	PRB_INFO("main", "Starting probeably %s ...", PRB_VERSION);
 
 	PRB_INFO("main", "Loading config from %s ...", config);
-	prb_load_config(config);
+	if (prb_load_config(config) < 0) {
+		PRB_ERROR("main", "Failed loading config.");
+		exit(EXIT_FAILURE);
+	}
 	worker_len = prb_config.num_workers;
 	FILE *log_fd = NULL;
 	if (prb_config.log_file) {
