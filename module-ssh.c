@@ -79,10 +79,18 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 {
 	int read_len = ssh_connect(r, s, ssh_buffer, sizeof(ssh_buffer));
 	int string_len = 0;
+
+	// Should always be 2 because of CR LF, but some servers do not comply.
+	int crlf_len = 2;
+
 	for (int i = 0; i < read_len; i++) {
 		if (ssh_buffer[i] == '\r' || ssh_buffer[i] == '\n') {
 			ssh_buffer[i] = '\0';
 			string_len = i;
+			if (ssh_buffer[i] == '\n') {
+				crlf_len = 1;
+			}
+			break;
 		}
 	}
 
@@ -93,15 +101,14 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	// Check if we need to read again to get the ciphers list
 	char *ciphers;
 	int ciphers_len;
-	// + 2 for CR LF
-	if (string_len + 2 == read_len) {
+	if (string_len + crlf_len == read_len) {
 		PRB_DEBUG("ssh", "Reading ciphers");
 		read_len = prb_socket_read(s, ssh_buffer, SSH_BUFFER_SIZE);
 		ciphers = ssh_buffer;
 		ciphers_len = read_len;
 	} else {
-		ciphers = &ssh_buffer[string_len + 2];
-		ciphers_len = read_len - string_len - 2;
+		ciphers = &ssh_buffer[string_len + crlf_len];
+		ciphers_len = read_len - string_len - crlf_len;
 		PRB_DEBUG("ssh", "Ciphers packet of size %d already received, presumably...", ciphers_len);
 	}
 
