@@ -61,6 +61,9 @@ static int handler(void *user, const char *section, const char *name,
 		else if (!strcmp(name, "jarm_workers")) {
 			prb_config.jarm_workers = atoi(value);
 		}
+		else if (!strcmp(name, "max_pending_requests")) {
+			prb_config.max_pending_requests = atoi(value);
+		}
 	}
 	return 0;
 }
@@ -69,6 +72,11 @@ int prb_load_config(char *file)
 {
 	if (ini_parse(file, handler, NULL) < 0) {
 		PRB_ERROR("config", "Failed to load config");
+		return -1;
+	}
+
+	if (prb_config.max_pending_requests <= 0) {
+		PRB_ERROR("config", "max_pending_requests must be higher than 0");
 		return -1;
 	}
 

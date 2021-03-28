@@ -20,6 +20,7 @@ struct _prb_config {
 	char *jarm_script;
 	char *jarm_socket;
 	int jarm_workers;
+	int max_pending_requests;
 };
 
 extern struct _prb_config prb_config;
