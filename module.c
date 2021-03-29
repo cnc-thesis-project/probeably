@@ -4,6 +4,7 @@
 #include "module-geoip.h"
 #include "module-rdns.h"
 #include "module-tls.h"
+#include "module-smtp.h"
 #include "module-default.h"
 #include "database.h"
 
@@ -37,6 +38,7 @@ static struct prb_module *modules[] = {
 	&module_tls,
 	&module_http,
 	&module_ssh,
+	&module_smtp,
 
 	// This module needs to be placed last since it is designed
 	// to always pass the protocol check.
