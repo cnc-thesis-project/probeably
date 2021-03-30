@@ -66,7 +66,7 @@ static void ssh_module_cleanup(struct probeably *p)
 	(void) p;
 }
 
-static void ssh_get_public_key(struct probeably *p, struct prb_request *r, struct prb_socket *s, const char *key_type)
+static void ssh_get_public_key(struct probeably *p, struct prb_request *r, const char *key_type)
 {
 	ssh_session ssh_session = ssh_new();
 	ssh_options_set(ssh_session, SSH_OPTIONS_HOST, r->ip);
@@ -92,7 +92,7 @@ static void ssh_get_public_key(struct probeably *p, struct prb_request *r, struc
 	}
 
 	char *b64_pubkey = 0;
-	char *key_name = ssh_key_type_to_char(ssh_key_type(srv_pubkey));
+	const char *key_name = ssh_key_type_to_char(ssh_key_type(srv_pubkey));
 	ssh_pki_export_pubkey_base64(srv_pubkey, &b64_pubkey);
 
 	snprintf(probe_buffer, sizeof(probe_buffer), "%s %s", key_name, b64_pubkey);
@@ -134,8 +134,8 @@ static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_soc
 	prb_write_data(p, r, "ssh", "string", probe_buffer, string_len, PRB_DB_SUCCESS);
 
 	// Check if we need to read again to get the ciphers list
-	char *ciphers;
-	int ciphers_len;
+	char *ciphers = 0;
+	int ciphers_len = 0;
 	if (string_len + crlf_len == read_len) {
 		PRB_DEBUG("ssh", "Reading ciphers");
 		read_len = prb_socket_read(s, probe_buffer, SSH_BUFFER_SIZE);
@@ -145,6 +145,14 @@ static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_soc
 		ciphers = &probe_buffer[string_len + crlf_len];
 		ciphers_len = read_len - string_len - crlf_len;
 		PRB_DEBUG("ssh", "Ciphers packet of size %d already received, presumably...", ciphers_len);
+	}
+
+	// ssh packet ends with at least 4 null bytes, if not it hasn't got the whole packet yet
+	while (ciphers_len < 4 || memcmp(&ciphers[ciphers_len-4], "\x00\x00\x00", 4)) {
+		read_len = prb_socket_read(s, ciphers + ciphers_len, SSH_BUFFER_SIZE - (string_len + crlf_len) - ciphers_len);
+		ciphers_len += read_len;
+		if (read_len <= 0)
+			break;
 	}
 
 	prb_write_data(p, r, "ssh", "ciphers", ciphers, ciphers_len, PRB_DB_SUCCESS);
@@ -168,11 +176,11 @@ static int ssh_module_run(struct probeably *p, struct prb_request *r, struct prb
 	ssh_probe(p, r, s);
 
 	if (has_rsa)
-		ssh_get_public_key(p, r, s, "ssh-rsa");
+		ssh_get_public_key(p, r, "ssh-rsa");
 	if (has_ecdsa)
-		ssh_get_public_key(p, r, s, "ssh-ecdsa");
+		ssh_get_public_key(p, r, "ssh-ecdsa");
 	if (has_ed25519)
-		ssh_get_public_key(p, r, s, "ssh-ed25519");
+		ssh_get_public_key(p, r, "ssh-ed25519");
 
 	return 0;
 }
