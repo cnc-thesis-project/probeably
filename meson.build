@@ -3,6 +3,7 @@ project('probeably', 'c',
 	default_options : ['warning_level=3'])
 
 curl_dep = dependency('libcurl')
+ssh_dep = dependency('libssh')
 hiredis_dep = dependency('hiredis')
 sqlite3_dep = dependency('sqlite3')
 thread_dep = dependency('threads')
@@ -51,6 +52,7 @@ executable('probeably',
 	],
 	dependencies : [
 		curl_dep,
+		ssh_dep,
 		hiredis_dep,
 		sqlite3_dep,
 		thread_dep,
