@@ -72,7 +72,10 @@ static void ssh_get_public_key(struct probeably *p, struct prb_request *r, struc
 	ssh_options_set(ssh_session, SSH_OPTIONS_HOST, r->ip);
 	ssh_options_set(ssh_session, SSH_OPTIONS_PORT, &r->port);
 	ssh_options_set(ssh_session, SSH_OPTIONS_TIMEOUT, &prb_config.read_timeout);
-	ssh_options_set(ssh_session, SSH_OPTIONS_HOSTKEYS, key_type);
+	if (!strcmp(key_type, "ssh-ecdsa"))
+		ssh_options_set(ssh_session, SSH_OPTIONS_HOSTKEYS, "ecdsa-sha2-nistp521,ecdsa-sha2-nistp384,ecdsa-sha2-nistp256");
+	else
+		ssh_options_set(ssh_session, SSH_OPTIONS_HOSTKEYS, key_type);
 
 	int rc = ssh_connect(ssh_session);
 	if (rc != SSH_OK) {
