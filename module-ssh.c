@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <libssh/libssh.h>
@@ -68,6 +69,9 @@ static void ssh_module_cleanup(struct probeably *p)
 
 static void ssh_get_public_key(struct probeably *p, struct prb_request *r, const char *key_type)
 {
+	// retrieve the specified key type of public key
+	// done with libssh, since handling diffie hellman shit manually is cancer
+
 	ssh_session ssh_session = ssh_new();
 	ssh_options_set(ssh_session, SSH_OPTIONS_HOST, r->ip);
 	ssh_options_set(ssh_session, SSH_OPTIONS_PORT, &r->port);
@@ -111,6 +115,9 @@ static void ssh_get_public_key(struct probeably *p, struct prb_request *r, const
 
 static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
+	// get the server banner and cipher list
+	// done manually with raw socket, since libssh sucks and cannot give the complete cipher list
+
 	int read_len = _ssh_connect(r, s, probe_buffer, sizeof(probe_buffer));
 	if (read_len <= 0)
 		return;
