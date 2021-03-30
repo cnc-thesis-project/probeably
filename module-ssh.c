@@ -26,7 +26,7 @@ static int ssh_module_check(const char *response, int len)
 }
 
 // Connect to SSH server and return server string in 'server_string' of size 'size'.
-static int prb_ssh_connect(struct prb_request *r, struct prb_socket *s, char *server_string, size_t size)
+static int _ssh_connect(struct prb_request *r, struct prb_socket *s, char *server_string, size_t size)
 {
 	int read_len = 0;
 
@@ -52,7 +52,7 @@ static int ssh_module_test(struct probeably *p, struct prb_request *r,
 	(void) p;
 
 	PRB_DEBUG("ssh", "SSH test probe");
-	return prb_ssh_connect(r, s, response, size);
+	return _ssh_connect(r, s, response, size);
 }
 
 static void ssh_module_init(struct probeably *p)
@@ -111,13 +111,25 @@ static void ssh_get_public_key(struct probeably *p, struct prb_request *r, const
 
 static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_socket *s)
 {
-	int read_len = prb_ssh_connect(r, s, probe_buffer, sizeof(probe_buffer));
+	int read_len = _ssh_connect(r, s, probe_buffer, sizeof(probe_buffer));
+	if (read_len <= 0)
+		return;
+
+	int packet_len = read_len;
 	int string_len = 0;
+
+	// ssh packet ends with at least 4 null bytes, if not it hasn't got the whole packet yet
+	while (packet_len < 4 || memcmp(&probe_buffer[packet_len-4], "\x00\x00\x00", 4)) {
+		read_len = prb_socket_read(s, probe_buffer + packet_len, SSH_BUFFER_SIZE - packet_len);
+		if (read_len <= 0)
+			break;
+		packet_len += read_len;
+	}
 
 	// Should always be 2 because of CR LF, but some servers do not comply.
 	int crlf_len = 2;
 
-	for (int i = 0; i < read_len; i++) {
+	for (int i = 0; i < packet_len; i++) {
 		if (probe_buffer[i] == '\r' || probe_buffer[i] == '\n') {
 			if (probe_buffer[i] == '\n') {
 				PRB_DEBUG("ssh", "Non-compliant server...");
@@ -136,24 +148,10 @@ static void ssh_probe(struct probeably *p, struct prb_request *r, struct prb_soc
 	// Check if we need to read again to get the ciphers list
 	char *ciphers = 0;
 	int ciphers_len = 0;
-	if (string_len + crlf_len == read_len) {
-		PRB_DEBUG("ssh", "Reading ciphers");
-		read_len = prb_socket_read(s, probe_buffer, SSH_BUFFER_SIZE);
-		ciphers = probe_buffer;
-		ciphers_len = read_len;
-	} else {
-		ciphers = &probe_buffer[string_len + crlf_len];
-		ciphers_len = read_len - string_len - crlf_len;
-		PRB_DEBUG("ssh", "Ciphers packet of size %d already received, presumably...", ciphers_len);
-	}
 
-	// ssh packet ends with at least 4 null bytes, if not it hasn't got the whole packet yet
-	while (ciphers_len < 4 || memcmp(&ciphers[ciphers_len-4], "\x00\x00\x00", 4)) {
-		read_len = prb_socket_read(s, ciphers + ciphers_len, SSH_BUFFER_SIZE - (string_len + crlf_len) - ciphers_len);
-		ciphers_len += read_len;
-		if (read_len <= 0)
-			break;
-	}
+	PRB_DEBUG("ssh", "Reading ciphers");
+	ciphers = &probe_buffer[string_len + crlf_len];
+	ciphers_len = packet_len - string_len - crlf_len;
 
 	prb_write_data(p, r, "ssh", "ciphers", ciphers, ciphers_len, PRB_DB_SUCCESS);
 
