@@ -55,7 +55,7 @@ static int default_module_run(struct probeably *p, struct prb_request *r, struct
 	}
 	size_t read_len = 0;
 	prb_socket_write(s, PROBE_PACKET, strlen(PROBE_PACKET));
-	while (read_len < sizeof(buffer) && (result = prb_socket_read(s, buffer, sizeof(buffer) - read_len)) > 0) {
+	while (read_len < sizeof(buffer) && (result = prb_socket_read(s, buffer + read_len, sizeof(buffer) - read_len)) > 0) {
 		read_len += result;
 	}
 
