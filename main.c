@@ -114,9 +114,9 @@ void pending_requests_cleanup()
 	free(pending_requests);
 }
 
-struct prb_request *pending_requests_add(char *ip, int port, int timestamp)
+struct prb_request *pending_requests_add(char *ip, int port, int timestamp, char *uuid)
 {
-	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d", ip, port, timestamp);
+	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d (uuid: %s)", ip, port, timestamp, uuid);
 	if (num_pending_requests == prb_config.max_pending_requests) {
 		PRB_ERROR("main", "Failed adding pending request. Request array full.");
 		return NULL;
@@ -129,6 +129,7 @@ struct prb_request *pending_requests_add(char *ip, int port, int timestamp)
 	new_req->ip = strdup(ip);
 	new_req->port = port;
 	new_req->timestamp = timestamp;
+	new_req->uuid = strdup(uuid);
 	pending_requests[num_pending_requests++] = new_req;
 	PRB_DEBUG("main", "Successfully added request to pending list.");
 	return new_req;
@@ -149,6 +150,7 @@ int pending_requests_remove(struct prb_request *req)
 		return -1;
 	}
 
+	free(req->uuid);
 	free(req->ip);
 	free(req);
 	num_pending_requests--;
@@ -205,19 +207,8 @@ static int pop_job(redisContext *ctx, unsigned int timeout)
 	char *values = strdup(reply->element[1]->str);
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
-	// ignore protocol
-	strtok(0, ",");
 	int timestamp = atoi(strtok(0, ","));
-
-	// The below attributes are not currently used.
-	/*
-	// status
-	strtok(0, ",");
-	// reason
-	strtok(0, ",");
-	//ttl
-	strtok(0, ",");
-	*/
+	char *uuid = strtok(0, ",");
 
 	if (!ip || port < 0) {
 		PRB_ERROR("main", "Data is not a valid job: %s", values);
@@ -225,7 +216,7 @@ static int pop_job(redisContext *ctx, unsigned int timeout)
 		return -1;
 	}
 
-	if (pending_requests_add(ip, port, timestamp) == NULL) {
+	if (pending_requests_add(ip, port, timestamp, uuid) == NULL) {
 		// This should never happen.
 		PRB_ERROR("main", "PENDING REQUESTS FULL: %d/%d. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!", num_pending_requests, prb_config.max_pending_requests);
 		exit(EXIT_FAILURE);

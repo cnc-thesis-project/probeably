@@ -28,6 +28,7 @@ struct prb_request {
 	char *ip;
 	int port;
 	int timestamp;
+	char *uuid;
 };
 
 extern struct probeably prb;

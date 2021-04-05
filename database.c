@@ -30,9 +30,10 @@ int prb_init_database(sqlite3 *db)
 	// probe_time: time the module stored this data into database
 	// flags: each bits representing a flag (see database.h for details)
 	// pid: the pid of worker that stored the data
+	// uuid: uuid of masscan iteration
 
 	char *query =	"CREATE TABLE IF NOT EXISTS Probe(name TEXT, type TEXT, ip TEXT, port INT"
-					", data BLOB, scan_time INT, probe_time INT, flags INT, pid INT);";
+					", data BLOB, scan_time INT, probe_time INT, flags INT, pid INT, uuid TEXT);";
 	char *err_msg = 0;
 
 	int rc = sqlite3_exec(db, query, 0, 0, &err_msg);
@@ -49,7 +50,7 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 {
 	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_DB_WRITE;
 	PRB_DEBUG("database", "Writing %zd bytes to database", data_size);
-	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	char *query = "INSERT INTO Probe VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 	sqlite3_stmt *res = 0;
 
 	int rc = sqlite3_prepare_v2(prb->db, query, -1, &res, 0);
@@ -68,6 +69,7 @@ int prb_write_data(	struct probeably *prb, struct prb_request *req, const char *
 	sqlite3_bind_int(res, 7, time(0));
 	sqlite3_bind_int(res, 8, flags);
 	sqlite3_bind_int(res, 9, WORKER_ID);
+	sqlite3_bind_text(res, 10, req->uuid, -1, 0);
 
 	rc = sqlite3_step(res);
 	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
