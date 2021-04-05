@@ -9,7 +9,7 @@
 #define BUFFER_SIZE (16*1024)
 static char buffer[BUFFER_SIZE];
 
-#define HELO "HELO\r\n"
+#define HELO "HELO test.com\r\n"
 
 static int smtp_module_check(const char *response, int len)
 {
