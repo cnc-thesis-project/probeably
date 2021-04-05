@@ -109,6 +109,11 @@ void pending_requests_init()
 	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*) * prb_config.max_pending_requests);
 }
 
+void pending_requests_cleanup()
+{
+	free(pending_requests);
+}
+
 struct prb_request *pending_requests_add(char *ip, int port, int timestamp)
 {
 	PRB_DEBUG("main", "Adding pending request for %s:%d with timestamp %d", ip, port, timestamp);
@@ -234,7 +239,9 @@ static void worker_loop(redisContext *ctx)
 	PRB_DEBUG("main", "Starting worker loop");
 
 	while (1) {
-		pop_job(ctx, 0);
+		// find a job when the workers has nothing to do
+		if (num_pending_requests == 0)
+			pop_job(ctx, 0);
 		update_worker_state(1);
 
 		struct prb_request *req = NULL;
@@ -248,7 +255,7 @@ static void worker_loop(redisContext *ctx)
 				pthread_mutex_lock(&shm->ip_cons_lock);
 				PRB_DEBUG("main", "Connections table locked.");
 				if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
-					PRB_DEBUG("main", "Failed to update connections table. ");
+					PRB_DEBUG("main", "Failed to update connections table.");
 					if (i == num_pending_requests - 1) {
 						if (num_pending_requests < prb_config.max_pending_requests) {
 							PRB_DEBUG("main", "Popping a new job.");
@@ -268,6 +275,8 @@ static void worker_loop(redisContext *ctx)
 						i = -1;
 						continue;
 					}
+					PRB_DEBUG("main", "Connections tabe unlocked.");
+					pthread_mutex_unlock(&shm->ip_cons_lock);
 				} else {
 					PRB_DEBUG("main", "Connections table updated.");
 					pthread_mutex_unlock(&shm->ip_cons_lock);
@@ -566,6 +575,7 @@ int main(int argc, char **argv)
 
 	cleanup_modules();
 	cleanup_ip_modules();
+	pending_requests_cleanup();
 	sqlite3_close(prb.db);
 	prb_socket_cleanup();
 
