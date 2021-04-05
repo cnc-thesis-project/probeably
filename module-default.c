@@ -67,8 +67,7 @@ static int default_module_run(struct probeably *p, struct prb_request *r, struct
 
 struct prb_module module_default = {
 	.flags = PRB_MODULE_REQUIRES_RAW_SOCKET
-		| PRB_MODULE_IS_APP_LAYER
-		| PRB_MODULE_REQUIRES_TEST_RESPONSE,
+		| PRB_MODULE_IS_APP_LAYER,
 	.name = "default",
 	.init = default_module_init,
 	.cleanup = default_module_cleanup,
