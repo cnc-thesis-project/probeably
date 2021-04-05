@@ -40,8 +40,6 @@ struct probeably prb = {0};
 
 redisContext *monitor_con = 0;
 
-static redisAsyncContext *c = 0;
-
 static void update_worker_state(int start_work)
 {
 	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
@@ -106,40 +104,6 @@ static int update_ip_con(struct ip_con *ip_cons, int *size, char const *ip, int 
 	return 0;
 }
 
-static void perform_probe(struct prb_request *req)
-{
-	char *ip = req->ip;
-	int port = req->port;
-
-	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
-
-	// run the module
-	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
-	if (port == 0)
-		run_ip_modules(&prb, req); // ip related analysis stuff, e.g. geoip
-	else
-		run_modules(&prb, req); // port related
-
-	// done with the work
-	if (port == 0)
-		PRB_DEBUG("main", "Finished probing host %s (%fs)", req->ip, stop_timer(start));
-	else
-		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req->ip, req->port, stop_timer(start));
-
-	if (port > 0) {
-		// decrease the ip connection counter
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
-		pthread_mutex_lock(&shm->ip_cons_lock);
-
-		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
-		// wake up all workers that are waiting for their working ip to be available
-		pthread_cond_broadcast(&shm->ip_cons_cv);
-
-		pthread_mutex_unlock(&shm->ip_cons_lock);
-		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
-	}
-}
-
 void pending_requests_init()
 {
 	pending_requests = (struct prb_request**) malloc(sizeof(struct prb_request*) * prb_config.max_pending_requests);
@@ -189,26 +153,54 @@ int pending_requests_remove(struct prb_request *req)
 	return 0;
 }
 
-static void port_callback(redisAsyncContext *c, void *r, void *privdata)
+static void perform_probe(struct prb_request *req)
 {
-	redisReply *reply = r;
+	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
+	char *ip = req->ip;
+	int port = req->port;
 
-	if (!reply || reply->elements < 2) {
-		return;
+	PRB_DEBUG("main", "Start probing: %s:%d", ip, port);
+
+	// run the module
+	struct timespec start = start_timer(); (void)start; // unused if PRB_DEBUG is omitted ;-;
+	if (port == 0)
+		run_ip_modules(&prb, req); // ip related analysis stuff, e.g. geoip
+	else
+		run_modules(&prb, req); // port related
+
+	// done with the work
+	if (port == 0)
+		PRB_DEBUG("main", "Finished probing host %s (%fs)", req->ip, stop_timer(start));
+	else
+		PRB_DEBUG("main", "Finished probing port %s:%d (%fs)", req->ip, req->port, stop_timer(start));
+
+	if (port > 0) {
+		// decrease the ip connection counter
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_LOCK;
+		pthread_mutex_lock(&shm->ip_cons_lock);
+
+		update_ip_con(shm->ip_cons, &shm->ip_cons_count, ip, -1);
+		// wake up all workers that are waiting for their working ip to be available
+		pthread_cond_broadcast(&shm->ip_cons_cv);
+
+		pthread_mutex_unlock(&shm->ip_cons_lock);
+		shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
 	}
+	pending_requests_remove(req);
+}
 
-	PRB_DEBUG("main", "Running port callback");
-
+static int pop_job(redisContext *ctx, unsigned int timeout)
+{
+	redisReply *reply = redisCommand(ctx, "BLPOP port %d", timeout);
+	if (reply == NULL || reply->elements < 2) {
+		PRB_ERROR("main", "Error popping job.");
+		return -1;
+	}
+	PRB_DEBUG("main", "Received job from redis: %s", reply->element[1]->str);
 	char *values = strdup(reply->element[1]->str);
-
-	redisAsyncCommand(c, port_callback, privdata, "BLPOP port 0");
-
-	PRB_DEBUG("main", "Received job from redis: %s", values);
-
 	char *ip = strtok(reply->element[1]->str, ",");
 	int port = atoi(strtok(0, ","));
-
-	// protocol
+	// ignore protocol
 	strtok(0, ",");
 	int timestamp = atoi(strtok(0, ","));
 
@@ -223,74 +215,73 @@ static void port_callback(redisAsyncContext *c, void *r, void *privdata)
 	*/
 
 	if (!ip || port < 0) {
-		PRB_ERROR("main", "error: got invalid format from redis: %s", values);
-
+		PRB_ERROR("main", "Data is not a valid job: %s", values);
 		free(values);
-		return;
+		return -1;
 	}
-
-	struct prb_request *req = NULL;
 
 	if (pending_requests_add(ip, port, timestamp) == NULL) {
 		// This should never happen.
 		PRB_ERROR("main", "PENDING REQUESTS FULL: %d/%d. THIS SHOULD NEVER HAPPEN. COMPLETELY UNACCEPTABLE FAILURE !!!", num_pending_requests, prb_config.max_pending_requests);
 		exit(EXIT_FAILURE);
 	}
+	free(values);
+	return 0;
+}
 
-	update_worker_state(1);
+static void worker_loop(redisContext *ctx)
+{
+	PRB_DEBUG("main", "Starting worker loop");
 
-	// Make sure that not too many work on the same ip address,
-	// but ip modules bypass this since they don't talk to the server at all.
-	for (int i = 0; i < num_pending_requests; i++) {
-		req = pending_requests[i];
-		if (req->port > 0) {
-			shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
-			pthread_mutex_lock(&shm->ip_cons_lock);
-			if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
-				if (i == num_pending_requests - 1) {
-					if (num_pending_requests < prb_config.max_pending_requests) {
-						pthread_mutex_unlock(&shm->ip_cons_lock);
-						goto clean;
+	while (1) {
+		pop_job(ctx, 0);
+		update_worker_state(1);
+
+		struct prb_request *req = NULL;
+
+		// Loop through the pending requests to find one we can start working on.
+		for (int i = 0; i < num_pending_requests; i++) {
+			req = pending_requests[i];
+			if (req->port > 0) {
+				shm->worker_status[WORKER_INDEX] = WORKER_STATUS_CON_WAIT;
+				PRB_DEBUG("main", "Attempting to lock connections table.");
+				pthread_mutex_lock(&shm->ip_cons_lock);
+				PRB_DEBUG("main", "Connections table locked.");
+				if (update_ip_con(shm->ip_cons, &shm->ip_cons_count, req->ip, 1)) {
+					PRB_DEBUG("main", "Failed to update connections table. ");
+					if (i == num_pending_requests - 1) {
+						if (num_pending_requests < prb_config.max_pending_requests) {
+							PRB_DEBUG("main", "Popping a new job.");
+							pthread_mutex_unlock(&shm->ip_cons_lock);
+							// Attempt to pop another job into the pending queue.
+							// Use a timeout to allow failure.
+							PRB_DEBUG("main", "Pop pop.");
+							pop_job(ctx, 3);
+							PRB_DEBUG("main", "Popped.");
+						} else {
+							// No request could be used, we have to wait here till a host is available.
+							PRB_DEBUG("main", "No pending request able to be run right now. Waiting ...");
+							pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
+							pthread_mutex_unlock(&shm->ip_cons_lock);
+						}
+						// Start over.
+						i = -1;
+						continue;
 					}
-					// Start over.
-					i = -1;
-					// No request could be used, we have to wait here till one is available.
-					PRB_DEBUG("main", "No pending request able to be run right now. Waiting ...");
-					pthread_cond_wait(&shm->ip_cons_cv, &shm->ip_cons_lock);
+				} else {
+					PRB_DEBUG("main", "Connections table updated.");
+					pthread_mutex_unlock(&shm->ip_cons_lock);
+					break;
 				}
 			} else {
-				pthread_mutex_unlock(&shm->ip_cons_lock);
+				// IP stuff. Just exit loop and run it.
 				break;
 			}
-			pthread_mutex_unlock(&shm->ip_cons_lock);
-		} else {
-			break;
 		}
-	}
 
-	shm->worker_status[WORKER_INDEX] = WORKER_STATUS_BUSY;
-	perform_probe(req);
-	pending_requests_remove(req);
-clean:
-	update_worker_state(0);
-	free(values);
-}
-
-static void connect_callback(const redisAsyncContext *c, int status)
-{
-	if (status != REDIS_OK) {
-		PRB_ERROR("main", "Failed to connect ( ╥ _╥): %s", c->errstr);
-		exit(EXIT_FAILURE);
-	}
-	PRB_DEBUG("main", "Connected! ( ^ 3^)");
-}
-
-static void disconnect_callback(const redisAsyncContext *c, int status)
-{
-	PRB_DEBUG("main", "Disconnecting ( ˘ ω˘)");
-	if (status != REDIS_OK) {
-		PRB_ERROR("main", "Redis disconnect error: %s", c->errstr);
-		return;
+		// The above loop resulted in a job request. Run it.
+		perform_probe(req);
+		update_worker_state(0);
 	}
 }
 
@@ -479,8 +470,8 @@ int main(int argc, char **argv)
 	WORKER_ID = getpid();
 
 	if (pid != 0) {
-		PRB_INFO("main", "Probeably is running");
 		// parent path
+		PRB_INFO("main", "Probeably is running");
 		ev_child_init(&cw, child_callback, pid, 0);
 		ev_child_start(EV_DEFAULT_ &cw);
 
@@ -500,6 +491,18 @@ int main(int argc, char **argv)
 
 			exit(EXIT_FAILURE);
 		}
+
+		ev_signal signal_watcher;
+		ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
+		ev_set_priority(&signal_watcher, EV_MAXPRI);
+		ev_signal_start(EV_DEFAULT, &signal_watcher);
+
+		// Master process loop.
+		ev_loop(EV_DEFAULT_ 0);
+
+		if (monitor_con)
+			redisFree(monitor_con);
+		ev_loop_destroy(EV_DEFAULT_UC);
 	} else {
 		// child path
 
@@ -542,26 +545,24 @@ int main(int argc, char **argv)
 		else
 			sleep(1); // give some time to initialize database table
 
-		c = redisAsyncConnect(prb_config.redis_host, prb_config.redis_port);
+		//c = redisAsyncConnect(prb_config.redis_host, prb_config.redis_port);
+		// TODO: configurable timeout?
+		struct timeval timeout = {1, 500000};
+		redisContext *redis_ctx = redisConnectWithTimeout(prb_config.redis_host, prb_config.redis_port, timeout);
 
-		if (c->err) {
-			PRB_ERROR("main", "Redis connection error: %s", c->errstr);
-			redisAsyncFree(c);
-
+		if (redis_ctx->err) {
+			PRB_ERROR("main", "Failed to connect ( ╥ _╥): %s", redis_ctx->errstr);
+			redisFree(redis_ctx);
 			exit(EXIT_FAILURE);
 		}
+		PRB_DEBUG("main", "Connected! ( ^ 3^)");
 
-		redisLibevAttach(EV_DEFAULT_ c);
-		redisAsyncSetConnectCallback(c, connect_callback);
-		redisAsyncSetDisconnectCallback(c, disconnect_callback);
-		redisAsyncCommand(c, port_callback, 0, "BLPOP port 0");
+		// Let's go
+		worker_loop(redis_ctx);
+
+		PRB_DEBUG("main", "Disconnecting ( ˘ ω˘)");
+		redisFree(redis_ctx);
 	}
-
-	ev_signal signal_watcher;
-	ev_signal_init(&signal_watcher, sigint_callback, SIGINT);
-	ev_set_priority(&signal_watcher, EV_MAXPRI);
-	ev_signal_start(EV_DEFAULT, &signal_watcher);
-	ev_loop(EV_DEFAULT_ 0);
 
 	cleanup_modules();
 	cleanup_ip_modules();
@@ -573,12 +574,6 @@ int main(int argc, char **argv)
 	pthread_cond_destroy(&shm->ip_cons_cv);
 	munmap(shm, SHM_SIZE);
 
-	if (c) {
-		redisAsyncFree(c);
-	}
-	if (monitor_con)
-		redisFree(monitor_con);
-	ev_loop_destroy(EV_DEFAULT_UC); // must be after redisAsyncFree
 	free(config);
 	prb_free_config();
 	free(worker_pid);
