@@ -84,7 +84,6 @@ void run_modules(struct probeably *p, struct prb_request *r)
 	}
 	int response_len = test_module->test(p, r, &s, response, sizeof(response));
 	if (response_len < 0) {
-		prb_write_data(&prb, r, "port", "closed", 0, 0, 0);
 		return;
 	}
 
