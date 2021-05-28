@@ -8,7 +8,7 @@ This is a probe tool we developed for our master thesis.
 meson build
 ninja -C build
 
-sudo meson install
+sudo ninja -C build install
 ```
 
 # Running
